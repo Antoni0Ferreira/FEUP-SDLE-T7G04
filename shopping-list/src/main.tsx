@@ -18,8 +18,12 @@ let handle
 if (isValidAutomergeUrl(rootDocUrl)) {
     handle = repo.find(rootDocUrl)
 } else {
-    handle = repo.create<{counter?: A.Counter}>()
-    handle.change(d => d.counter = new A.Counter())
+    handle = repo.create<{counter?: A.Counter, milkCounter?: A.Counter, asparagusCounter?: A.Counter}>()
+    handle.change(d => {
+      d.counter = new A.Counter()
+      d.milkCounter = new A.Counter()
+      d.asparagusCounter = new A.Counter()
+    })
 }
 const docUrl = document.location.hash = handle.url
 window.handle = handle // we'll use this later for experimentation
