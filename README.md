@@ -1,5 +1,5 @@
 # FEUP SDLE T07G04
-## Shopping Lists on the Cloud
+## Shopping List Platform
 
 - António Ferreira (up202004735)
 - Francisco Maldonado (up202004244)
