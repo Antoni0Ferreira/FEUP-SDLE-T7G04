@@ -1,12 +1,18 @@
-import logo from './logo.svg';
 import './App.css';
 import ShoppingList from './components/ShoppingList';
+import Home from './components/Home';
+import {Routes,Route} from "react-router-dom"; 
 
 function App() {
   return (
+    <>
+      <Routes>
+        <Route path='/:id' element={<ShoppingList />} />
+        <Route path='/' element={<Home />} />
+      </Routes>
     <div className="App">
-      <ShoppingList />
     </div>
+    </>
   );
 }
 
