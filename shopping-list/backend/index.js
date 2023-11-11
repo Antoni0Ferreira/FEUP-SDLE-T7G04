@@ -3,6 +3,8 @@ const cors = require('cors'); // access our server from different domains
 const bodyParser = require('body-parser'); // mainly used for post form
 const router = require('./routes/routes');
 const mongoose = require('mongoose');
+const ip = require('ip');
+const crdt = require('react-crdt');
 require('dotenv/config');
 
 const app = express();
@@ -30,6 +32,7 @@ const port = process.env.PORT || 4000;
 
 const server = app.listen(port, () => {
     console.log(`Server running on port ${port}`);
+    console.log(ip.address() + ':' + server.address().port);
 } );
 
 
