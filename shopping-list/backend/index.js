@@ -1,22 +1,13 @@
 const express = require('express');
 const cors = require('cors'); // access our server from different domains
-const bodyParser = require('body-parser'); // mainly used for post form
 const mongoose = require('mongoose');
 const ip = require('ip');
-const crdt = require('react-crdt');
-const e = require('express');
 const path = require('path');
 require('dotenv/config');
-
-var clients = []; // list of clients
-var tempState = {}; // list of CRDT objects
-var clientResponseDict = {}; // list of client responses
-var pollingQueue = {}; // list of client queues
+const schemas = require('./models/schemas');
+const {AceBase} = require('acebase');
 
 const app = express();
-
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({extended: false}));
 
 app.set('trust proxy', true);
 
@@ -29,140 +20,69 @@ const corsOptions = {
 
 app.use(cors(corsOptions));
 
-app.get('/', (req, res) => {
-    console.log("GET REQUEST");
+app.use(express.json());
 
-    var remIP =  req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    console.log("Client IP: " + remIP);
+const acebase = new AceBase({dbname: 'mydb', host: 'localhost', port: 3000, https:true});
 
-    if (clients.indexOf(remIP) == -1) {
-        clients.push(remIP);
-        console.log("Added client: " + remIP);
-    } 
-    
-    else {
-        console.log("Client already exists");
-        console.log("Clients:" , clients);
-    }
-    
-    res.sendFile(path.join(__dirname , '../frontend/public/index.html'));
+app.post('/api/shoppingList', async (req, res) => {
+    const shoppingList = req.body;
+    const ref = await acebase.ref('shoppingLists').push(shoppingList);
+    res.json({id:ref.key});
 })
 
-//app.use(express.static(path.join(__dirname , '../frontend/public')));
-
-app.post('/api', function(req, res) {
-    console.log("API POST REQUEST");
-
-    const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    console.log("Client IP: " + clientIP);
-
-    sendToAllClientsExceptSender(clientIP, req.body);
-
-    res.statusCode = 200;
-    res.end();
+app.get('/api/shoppingList/:id', async (req, res) => {
+    const id = req.params.id;
+    const ref = await acebase.ref(`shoppingLists/${id}`).once('value');
+    const shoppingList = ref.val()
+    res.json(shoppingList);
 })
 
-app.get('/api/lp', function(req, res) {
-    console.log("API LONG POLLING REQUEST");
-    const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    console.log("Client IP: " + clientIP);
+app.post('/api/shoppingList/:id/items', async (req, res) => {
+    const item = req.body.item;
+    const itemName = item.name;
+    const itemQuantity = item.quantityDesired;
 
-    req.on('close', function() {
-        console.log("Client " + clientIP + " closed connection");
-    })
-
-    clientResponseDict[clientIP] = {}
-    clientResponseDict[clientIP] = res;
-
-    if (!pollingQueue.hasOwnProperty(clientIP)) {
-        console.log("Polling queue does not have client IP " + clientIP + ", so launching one")
-        pollingQueue[clientIP] = [];
+    const itemModelToSave = {
+        name: itemName,
+        quantityDesired: itemQuantity,
+        quantityAcquired: 0
     }
 
-    else {
-        // Check if there is something in the queue to send
-        if (pollingQueue[clientIP].length > 0) {
-            console.log("Polling queue has client IP " + clientIP + ", so sending response")
-            res.end(JSON.stringify(pollingQueue[clientIP].shift()));
-            clientResponseDict[clientIP] = {};
-        }
-    }
-})
+    const ref = await acebase.ref('items').push(itemModelToSave);
+    const itemId = ref.key;
 
-app.get('/api/initial', function(req, res) {
-    console.log("API INITIAL REQUEST: " + JSON.stringify(tempState));
-    
-    const clientIP = req.headers['x-forwarded-for'] || req.socket.remoteAddress;
-    
-    pollingQueue[clientIP] = [];
+    const shoppingListId = req.params.id;
+    const shoppingListRef = await acebase.ref(`shoppingLists/${shoppingListId}`).once('value');
+    const shoppingList = shoppingListRef.val();
+    const shoppingListItems = shoppingList.items;
 
-    res.end(JSON.stringify(tempState));
-})
-
-function sendToAllClientsExceptSender(senderIP, data) {
-    console.log("File to send:" + JSON.stringify(data));
-
-    if (data.crdtName in tempState) {
-        var tempFile = tempState[data.crdtName];
-    }
-    else {
-        // create new local CRDT object depending on CRDT Type
-        var tempFile = createLocalCRDT(data)
-        tempFile.crdtType = data.crdtType;
+    const itemToPush = {
+        id: itemId,
+        name: itemName,
+        quantityDesired: parseInt(itemQuantity),
+        quantityAcquired: 0
     }
 
-    tempState[data.crdtName] = tempFile.downstream(data.operation) // propagate operation to local CRDT object
-    console.log("Temp State: " + JSON.stringify(tempState));
+    shoppingListItems.push(itemToPush);
+    shoppingList.items = shoppingListItems;
+    await acebase.ref(`shoppingLists/${shoppingListId}`).set(shoppingList);
+    res.json(shoppingList);
+});
 
-    // console log clientResponseDict keys
-    //console.log("Client Response Dict: ")
+app.delete('/api/shoppingList/:id/items/:itemId', async (req, res) => {
+    const itemId = req.params.itemId;
+    const shoppingListId = req.params.id;
 
-    if (Object.keys(clientResponseDict).length === 0) {
-        console.log("No clients to send to");
-    }
-    else {
-        clients.forEach(function(client) {
-            if (client !== senderIP) {
-                pollingQueue[client].push(data);
+    const shoppingListRef = await acebase.ref(`shoppingLists/${shoppingListId}`).once('value');
+    const shoppingList = shoppingListRef.val();
+    const shoppingListItems = shoppingList.items;
 
-                if (Object.keys(clientResponseDict[client]).length === 0) {
-                    console.log("Can't use Long Polling for this client");
-                }
+    const newShoppingListItems = shoppingListItems.filter(item => item.id !== itemId);
+    shoppingList.items = newShoppingListItems;
+    await acebase.ref(`shoppingLists/${shoppingListId}`).set(shoppingList);
+    res.json(shoppingList);
+});
 
-                else {
-                    clientResponseDict[client].end(JSON.stringify(pollingQueue[client].shift())); // send response to client and remove from queue
-                    clientResponseDict[client] = {}; // reset response
-                }
-            }
-
-            else {
-                console.log("Client is sender: " + client);
-            }
-        })
-    }
-
-    console.log("Polling Queue: " + JSON.stringify(pollingQueue));
-
-}
-
-function createLocalCRDT(data) {
-    switch (data.crdtType) {
-        case "lwwRegister":
-            return new crdt.OpLwwRegister(data.crdtName, false, data.operation.timestamp - 1);
-        case "opCounter":
-            return new crdt.OpCounter(data.crdtName);
-        case "opORSet":
-            return new crdt.OpORSet(data.crdtName);
-        default:
-            console.log("Unexpected CRDT type");
-            break;
-    }
-}
-
-function registerClient(clientIP) {
-    console.log("Registering client: " + clientIP);
-    clients.push(clientIP);
-}
 
 const dbOptions = {useNewUrlParser: true, useUnifiedTopology: true};
 mongoose.connect(process.env.DB_URI, dbOptions)
@@ -172,10 +92,202 @@ mongoose.connect(process.env.DB_URI, dbOptions)
 
 const port = process.env.PORT || 4000;
 
-const server = app.listen(port, () => {
-    console.log(`Server running on port ${port}`);
-    console.log(ip.address() + ':' + server.address().port);
-} );
+
+acebase.ref('shoppingLists').remove().then(() => console.log('Shopping lists removed from acebase'));
+
+
+async function createExampleItem() {
+    const item = {
+        name: 'Example Item',
+        quantityDesired: 5,
+        quantityAcquired: 0
+    };
+    
+    const ref = await acebase.ref('items').push(item);
+
+    console.log('Exemplo de Item criado com ID:', ref.key);
+
+    return {item:item, id: ref.key};
+}
+
+// Função para criar um exemplo de lista de compras que contém o item
+async function createExampleShoppingList({item, id}) {
+    const listaDeCompras = {
+        items: [
+            {
+                id: id,
+                name: item.name,
+                quantityDesired: item.quantityDesired,
+                quantityAcquired: item.quantityAcquired
+            }
+        ]
+    };
+
+    const ref = await acebase.ref('shoppingLists').push(listaDeCompras);
+    console.log('Exemplo de Lista de Compras criado com ID:', ref.key);
+
+}
+
+// Inicia criando o exemplo de item e, em seguida, a lista de compras
+createExampleItem()
+    .then(item => createExampleShoppingList(item))
+    .then(() => {
+        // Inicia o servidor após criar os exemplos
+        app.listen(port, () => {
+            console.log(`Server is listening on port: ${port}`);
+        });
+    })
+    .catch(error => console.error('Error creating example:', error));
 
 
 
+const acebaseShoppingListRef =  acebase.ref('shoppingLists');
+const mongooseShoppingListRef = schemas.ShoppingList;
+
+async function syncShoppingLists() {
+    const acebaseShoppingLists = await acebaseShoppingListRef.once('value');
+    //console.log('Shopping lists from acebase:', acebaseShoppingLists.val());
+    
+    // ----------------- ACEBASE TO MONGO -----------------
+    for (const acebaseShoppingListKey in acebaseShoppingLists.val()) {
+
+        const acebaseShoppingList = acebaseShoppingLists.val()[acebaseShoppingListKey];
+
+        const mongoShoppingList = await mongooseShoppingListRef.find({id: acebaseShoppingListKey}).exec();
+
+        if (mongoShoppingList.length === 0) {
+            
+            console.log('Shopping list not found in mongo, creating it:', acebaseShoppingList)
+
+            await createMongoShoppingList(acebaseShoppingList, acebaseShoppingListKey).catch(err => console.log(err));        
+        }
+
+        else {
+            
+            console.log('Shopping list from mongo:', mongoShoppingList)
+            
+            console.log('Shopping list from acebase:', acebaseShoppingList)
+            
+            var acebaseItems = acebaseShoppingList.items;
+            var mongoItems = mongoShoppingList[0].items;
+
+            console.log('Acebase items:', acebaseItems)
+            console.log('Mongo items:', mongoItems)
+
+            var isDifferent = areItemsListDifferent(acebaseItems, mongoItems);
+            
+            if (isDifferent) {
+                
+                // warning: the entryDate field is being updated on ALL items (idk if for Last Write Wins its a problem)
+                mongoShoppingList[0].items = acebaseItems;
+                await mongoShoppingList[0].save()
+                .then(() => console.log('Shopping list updated in MongoDB', mongoShoppingList[0].id))
+                .catch(err => console.log(err));
+            }
+            else {
+                console.log('No need to update shopping list', mongoShoppingList[0].id)
+            }
+        }
+    }
+
+    // ----------------- MONGO TO ACEBASE -----------------
+    const mongoShoppingLists = await mongooseShoppingListRef.find().exec();
+    //console.log('Shopping lists from mongo:', mongoShoppingLists);
+
+    for (const mongoShoppingListKey in mongoShoppingLists) {
+            
+        const mongoShoppingList = mongoShoppingLists[mongoShoppingListKey];
+
+        const acebaseShoppingList = await acebaseShoppingListRef.child(mongoShoppingList.id).once('value');
+
+        if (!acebaseShoppingList.exists()) {
+    
+            console.log('Shopping list not found in acebase, creating it:', mongoShoppingList)
+            
+            acebaseItems = [];
+            for (const mongoShoppingListItemKey in mongoShoppingList.items) {
+                    
+                const mongoShoppingListItem = mongoShoppingList.items[mongoShoppingListItemKey];
+
+                const item = {
+                    id: mongoShoppingListItem.id,
+                    name: mongoShoppingListItem.name,
+                    quantityDesired: mongoShoppingListItem.quantityDesired,
+                    quantityAcquired: mongoShoppingListItem.quantityAcquired
+                }
+
+                acebaseItems.push(item);
+            }
+
+            const newShoppingList = {
+                id: mongoShoppingList.id,
+                items: acebaseItems
+            }
+
+            await acebaseShoppingListRef.child(mongoShoppingList.id).set(newShoppingList)
+            .then(() => console.log('New shopping list created in Acebase', newShoppingList.id))
+            .catch(err => console.log(err));
+        }
+            
+    }
+
+}
+
+async function createMongoShoppingList(acebaseShoppingList, acebaseShoppingListKey) {
+    const mongoItems = [];
+    for (const acebaseShoppingListItemKey in acebaseShoppingList.items) {
+        
+        const acebaseShoppingListItem = acebaseShoppingList.items[acebaseShoppingListItemKey];
+
+        const item = {
+            id: acebaseShoppingListItem.id,
+            name: acebaseShoppingListItem.name,
+            quantityDesired: acebaseShoppingListItem.quantityDesired,
+            quantityAcquired: acebaseShoppingListItem.quantityAcquired
+        }
+
+        mongoItems.push(item);
+    }
+
+    //console.log("Mongo items:", mongoItems)
+    const newShoppingList = new schemas.ShoppingList({
+        id: acebaseShoppingListKey,
+        items: mongoItems
+    })
+    
+
+    await newShoppingList.save()
+       .then(() => console.log('New shopping list created in MongoDB', newShoppingList.id))
+        .catch(err => console.log(err));
+}
+
+function areItemsListDifferent(acebaseItems, mongoItems) {
+
+    if (acebaseItems.length !== mongoItems.length) {
+        return true;
+    }
+
+    for (const acebaseItemKey in acebaseItems) {
+
+        const acebaseItem = acebaseItems[acebaseItemKey];
+        const mongoItem = mongoItems.find(item => item.id === acebaseItem.id);
+        if (mongoItem) {
+            if (acebaseItem.name !== mongoItem.name) {
+                return true;
+            }
+            if (acebaseItem.quantityDesired !== mongoItem.quantityDesired) {
+                return true;
+            }
+            if (acebaseItem.quantityAcquired !== mongoItem.quantityAcquired) {
+                return true;
+            }
+        }
+
+        else {
+            return true;
+        }
+    }
+    return false;
+}
+
+setInterval(() => syncShoppingLists(), 5000);

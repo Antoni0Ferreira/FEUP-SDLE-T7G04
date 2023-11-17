@@ -1,7 +1,7 @@
+/*
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
-import indexedDBService from '../services/IndexedDBService';
 
 const Home = () => {
   const [shoppingLists, setShoppingLists] = useState([]);
@@ -70,4 +70,4 @@ const Home = () => {
   );
 };
 
-export default Home;
+export default Home;*/

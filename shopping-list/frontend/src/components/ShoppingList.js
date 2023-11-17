@@ -1,162 +1,66 @@
 import React, { useState, useEffect } from 'react';
 import {useParams } from 'react-router-dom';
-import indexedDBService from '../services/IndexedDBService';
+import axios from 'axios';
 
 const ShoppingList = () => {
+  const [shoppingList, setShoppingList] = useState({
+    id: '',
+    items: []
+  });
+
+  const [item, setItem] = useState('');
+  const [quantity, setQuantityDesired] = useState('');
+
   const { id } = useParams();
-  const [shoppingList, setShoppingList] = useState(null);
-  const [newItemName, setNewItemName] = useState('');
+
 
   useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const db = await indexedDBService.initializeDB();
-        const transaction = db.transaction(['shoppingLists'], 'readonly');
-        const shoppingListStore = transaction.objectStore('shoppingLists');
-        const request = await shoppingListStore.get(parseInt(id, 10));
+    axios.get(`/api/shoppingList/${id}`)
+    .then(response => setShoppingList(response.data))
+    .catch(error => console.log(error));
+  }, [])
 
-        request.onsuccess = (event) => {
-          const list = event.target.result;
-          setShoppingList(list);
-        };
+  const handleAddItem = (event) => {
+    event.preventDefault();
 
-        request.onerror = (event) => {
-          console.error(event.target.error);
-        };
-      } catch (error) {
-        console.error('Error during data fetch:', error);
-      }
+    const newItem = {
+      name: item,
+      quantityDesired: quantity
     };
 
-    fetchData();
-  }, [id]);
-
-  const handleAddItem = async () => {
-    if (!newItemName) return;
-
-    const db = await indexedDBService.initializeDB();
-    const transaction = db.transaction(['shoppingLists'], 'readwrite');
-    const shoppingListStore = transaction.objectStore('shoppingLists');
-
-    const request = shoppingListStore.get(parseInt(id, 10));
-
-    request.onsuccess = () => {
-      const list = request.result;
-      const newItem = {
-        name: newItemName,
-        quantityDesired: 1,
-        quantityAcquired: 0,
-      };
-
-      list.items.push(newItem);
-
-      const updateRequest = shoppingListStore.put(list);
-
-      updateRequest.onsuccess = () => {
-        setNewItemName(''); // Limpar o campo após adicionar o item
-        setShoppingList(list);
-      };
-    };
-  };
-
-  const handleRemoveItem = async (index) => {
-    const updatedList = { ...shoppingList };
-    updatedList.items.splice(index, 1);
-
-    updateShoppingList(updatedList);
+    // console log repsonse in then
+    const response = axios.post(`/api/shoppingList/${id}/items`, {item:newItem})
+    .then(response => {setShoppingList(response.data); console.log(response.data)})
+    .catch(error => console.log(error));
+    
+    setItem('');
+    setQuantityDesired('');
   }
 
-  const handleIncreaseQuantityDesired = async (index) => {
-    const updatedList = { ...shoppingList };
-    updatedList.items[index].quantityDesired += 1;
-    updateShoppingList(updatedList);
-  };
-
-  const handleDecreaseQuantityDesired = async (index) => {
-    const updatedList = { ...shoppingList };
-    updatedList.items[index].quantityDesired -= 1;
-    updateShoppingList(updatedList);
-  }
-
-  const handleIncreaseQuantityAcquired = async (index) => {
-    const updatedList = { ...shoppingList };
-    updatedList.items[index].quantityAcquired += 1;
-
-    updateShoppingList(updatedList);
-  }
-
-  const handleDecreaseQuantityAcquired = async (index) => {
-    const updatedList = { ...shoppingList };
-    updatedList.items[index].quantityAcquired -= 1;
-
-    updateShoppingList(updatedList);
-  }
-
-  const updateShoppingList = async (updatedList) => {
-    try {
-      const db = await indexedDBService.initializeDB();
-      const transaction = db.transaction(['shoppingLists'], 'readwrite');
-      const shoppingListStore = transaction.objectStore('shoppingLists');
-      const updateRequest = shoppingListStore.put(updatedList);
-
-      updateRequest.onsuccess = () => {
-        setShoppingList(updatedList);
-      };
-
-      updateRequest.onerror = (event) => {
-        console.error(event.target.error);
-      };
-    } catch (error) {
-      console.error('Error during data update:', error);
-    }
+  const handleDeleteItem = (itemId) => {
+    axios.delete(`/api/shoppingList/${id}/items/${itemId}`)
+    .then(response => setShoppingList(response.data))
+    .catch(error => console.log(error));
   };
 
   return (
     <div>
-      {shoppingList ? (
-        <>
-          <h1>{shoppingList.name}</h1>
-          <div>
-            <input
-              type="text"
-              placeholder="New Item Name"
-              value={newItemName}
-              onChange={(e) => setNewItemName(e.target.value)}
-            />
-            <button onClick={handleAddItem}>Add Item</button>
-          </div>
-          <ul>
-            {shoppingList.items.map((item, index) => (
-              <li key={index}>
-                
-                {item.name + " "}       
-                Desired:  
-                <button onClick={() => handleDecreaseQuantityDesired(index)}>
-                  -
-                </button>
-                {item.quantityDesired} 
-                <button onClick={() => handleIncreaseQuantityDesired(index)}>
-                  +
-                </button>
-                
-                Acquired: 
-                <button onClick={() => handleDecreaseQuantityAcquired(index)}>
-                  -
-                </button>
-                {item.quantityAcquired}
-                <button onClick={() => handleIncreaseQuantityAcquired(index)}>
-                  +
-                </button>
-                <button onClick={() => handleRemoveItem(index)}>
-                  Remove Item
-                </button>
-              </li>
-            ))}
-          </ul>
-        </>
-      ) : (
-        <p>Loading...</p>
-      )}
+      <h1>Shopping List</h1>
+      <ul>
+        {shoppingList.items.map((item) => (
+          <li key={item.id}>{item.name} - Desired Quantity: {item.quantityDesired} - Acquired Quantity: {item.quantityAcquired}
+          <button onClick={() => handleDeleteItem(item.id)}> Remove </button></li>
+        ))}
+
+      </ul>
+
+      <form onSubmit={handleAddItem}>
+        <label>Item:</label>
+        <input type="text" value={item} onChange={(event) => setItem(event.target.value)} />
+        <label>Quantity:</label>
+        <input type="text" value={quantity} onChange={(event) => setQuantityDesired(event.target.value)} />
+        <input type="submit" value="Add" />
+      </form>
     </div>
   );
 };
