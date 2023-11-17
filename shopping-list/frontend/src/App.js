@@ -1,6 +1,7 @@
 import './App.css';
 import ShoppingList from './components/ShoppingList';
 import Home from './components/Home';
+import Content from './components/Content';
 import {Routes,Route} from "react-router-dom"; 
 
 function App() {
@@ -8,7 +9,7 @@ function App() {
     <>
       <Routes>
         <Route path='/:id' element={<ShoppingList />} />
-        <Route path='/' element={<Home />} />
+        <Route path='/' element={<Content />} />
       </Routes>
     <div className="App">
     </div>
