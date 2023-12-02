@@ -2,7 +2,7 @@ package sdle.crdt;
 
 import java.util.Objects;
 
-public class Pair<F,S> {
+public class Pair<F extends Comparable<F>,S extends Comparable<S>> {
     private final F first;
     private final S second;
 
@@ -35,7 +35,11 @@ public class Pair<F,S> {
         return "(" + first + ", " + second + ")";
     }
 
-    public S compareTo(Pair<T, S> key) {
-
+    public int compareTo(Pair<F, S> other) {
+        if (other.first.equals(this.first)) {
+            return this.second.compareTo(other.second);
+        } else {
+            return this.first.compareTo(other.first);
+        }
     }
 }
