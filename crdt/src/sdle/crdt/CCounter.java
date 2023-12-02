@@ -93,7 +93,7 @@ public class CCounter<V extends Comparable<V>, K extends Comparable<K>> {
     public void join(CCounter<V, K> other) {
         dotKernel.join(other.dotKernel);
     }
-    
+
     private V add(V base, V value) {
         if(value instanceof Integer) {
             if (base == null){
