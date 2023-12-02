@@ -12,7 +12,7 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
     DotContext<K> cbase;
     DotContext<K> c;
 
-    private Joinable<T> joinable;
+    private final Joinable<T> joinable;
 
     public DotKernel(Joinable<T> joinable) {
         this.c = this.cbase = new DotContext<K>();
