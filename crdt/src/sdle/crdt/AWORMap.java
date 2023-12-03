@@ -7,9 +7,15 @@ import java.util.Map;
 
 public class AWORMap<E extends Comparable<E>, K extends Comparable<K>> {
 
-    private Joinable<E> joinable = (Joinable<E>) new NumericJoin();
+    private Joinable<E> joinable = new Joinable<E>() {
+        @Override
+        public E join(E a, E b) {
+            return a.compareTo(b) > 0 ? a : b;
+        }
+    };
+
     private DotKernel<E, K> dotKernel = new DotKernel<>(joinable);
-    private K id;
+    private final K id;
 
     public AWORMap(K id) {
         this.id = id;
@@ -107,6 +113,14 @@ public class AWORMap<E extends Comparable<E>, K extends Comparable<K>> {
             }
         }
         return highestDot;
+    }
+
+    public static void main(String[] args) {
+        AWORMap<String, Integer> replica1 = new AWORMap<>(1);
+        AWORMap<String, Integer> replica2 = new AWORMap<>(2);
+
+        //replica1 = replica1.add("a", "1");
+        //replica1 = replica1.add("a", "2");
     }
 
 }

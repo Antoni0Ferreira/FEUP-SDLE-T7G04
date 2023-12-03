@@ -122,26 +122,24 @@ public class DotContext<K extends Comparable<K>> {
         Iterator<Map.Entry<K, Integer>> mit = causalContext.entrySet().iterator();
         Iterator<Map.Entry<K, Integer>> mito = o.causalContext.entrySet().iterator();
 
-        do {
-            boolean mitHasNext = mit.hasNext();
-            boolean mitoHasNext = mito.hasNext();
-            Map.Entry<K, Integer> mitNext = mit.hasNext() ? mit.next() : null;
-            Map.Entry<K, Integer> mitoNext = mito.hasNext() ? mito.next() : null;
-            if (mitHasNext && (!mitoHasNext || mitNext.getKey().compareTo(mitoNext.getKey()) < 0)) {
+        Map.Entry<K, Integer> mitNext = mit.hasNext() ? mit.next() : null;
+        Map.Entry<K, Integer> mitoNext = mito.hasNext() ? mito.next() : null;
+
+        while (mitNext != null || mitoNext != null) {
+            if (mitNext != null && (mitoNext == null || mitNext.getKey().compareTo(mitoNext.getKey()) < 0)) {
+                // entry only at this
+                mitNext = mit.hasNext() ? mit.next() : null;
+            } else if (mitoNext != null && (mitNext == null || mitoNext.getKey().compareTo(mitNext.getKey()) < 0)) {
                 // entry only at other
-                // access previous iterator
-                mit.next();
-            }
-            else if (mitoHasNext && (!mitHasNext || mitoNext.getKey().compareTo(mitNext.getKey()) < 0)) {
-                mito.next();
                 causalContext.put(mitoNext.getKey(), mitoNext.getValue());
-            }
-            else if (mitHasNext && mitoHasNext){
+                mitoNext = mito.hasNext() ? mito.next() : null;
+            } else if (mitNext != null && mitoNext != null) {
+                // entries at both
                 causalContext.put(mitNext.getKey(), Math.max(mitNext.getValue(), mitoNext.getValue()));
-                mit.next();
-                mito.next();
+                mitNext = mit.hasNext() ? mit.next() : null;
+                mitoNext = mito.hasNext() ? mito.next() : null;
             }
-        } while (mit.hasNext() || mito.hasNext());
+        }
 
         // DC
         // Set
@@ -151,6 +149,61 @@ public class DotContext<K extends Comparable<K>> {
 
         compact();
     }
+
+    public static void main(String[] args) {
+        // Test Case 1: Basic DotContext Operations
+        DotContext<String> dotContext1 = new DotContext<>();
+        Pair<String, Integer> dotA1 = dotContext1.makeDot("A");
+        Pair<String, Integer> dotB1 = dotContext1.makeDot("B");
+
+        System.out.println("Test Case 1: Basic DotContext Operations");
+        System.out.println("DotContext 1 after making dots: " + dotContext1);
+        System.out.println();
+
+        // Test Case 2: Joining DotContexts
+        DotContext<String> dotContext2 = new DotContext<>();
+        Pair<String, Integer> dotC1 = dotContext2.makeDot("C");
+        Pair<String, Integer> dotD1 = dotContext2.makeDot("D");
+
+        dotContext1.join(dotContext2);
+
+        System.out.println("Test Case 2: Joining DotContexts");
+        System.out.println("DotContext 1 after joining with DotContext 2: " + dotContext1);
+        System.out.println();
+
+        // Test Case 3: Dot Inclusion Check
+        Pair<String, Integer> dotE2 = new Pair<>("E", 2);
+        System.out.println("Test Case 3: Dot Inclusion Check");
+        System.out.println("Is dot (E, 2) in DotContext 1? " + dotContext1.dotIn(dotE2));
+        System.out.println();
+
+        // Test Case 4: Inserting a New Dot
+        Pair<String, Integer> dotF1 = dotContext1.makeDot("F");
+        dotContext1.insertDot(dotF1, true);
+
+        System.out.println("Test Case 4: Inserting a New Dot");
+        System.out.println("DotContext 1 after inserting a new dot: " + dotContext1);
+        System.out.println();
+
+        // Test Case 5: Compacting DotCloud
+        dotContext1.compact();
+
+        System.out.println("Test Case 5: Compacting DotCloud");
+        System.out.println("DotContext 1 after compacting: " + dotContext1);
+        System.out.println();
+
+        // Test Case 6: Creating a New DotContext and Joining
+        DotContext<String> dotContext3 = new DotContext<>();
+        Pair<String, Integer> dotG1 = dotContext3.makeDot("G");
+        Pair<String, Integer> dotH1 = dotContext3.makeDot("H");
+
+        dotContext1.join(dotContext3);
+
+        System.out.println("Test Case 6: Creating a New DotContext and Joining");
+        System.out.println("DotContext 1 after joining with DotContext 3: " + dotContext1);
+        System.out.println();
+    }
+
 
 
 }
