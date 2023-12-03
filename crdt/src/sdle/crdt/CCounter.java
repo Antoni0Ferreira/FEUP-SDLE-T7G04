@@ -36,11 +36,12 @@ public class CCounter<V extends Comparable<V>, K extends Comparable<K>> {
     }
 
     public CCounter<V,K> increment(V value) {
-        CCounter<V, K> result = new CCounter<>();
+        CCounter<V, K> result = new CCounter<>(this.id);
         Set<Pair<K, Integer>> dots = new HashSet<>();
         V base = null;
 
         for (Map.Entry<Pair<K, Integer>, V> it: dotKernel.dotMap.entrySet()) {
+            System.out.println(it.getKey().getFirst());
             if(it.getKey().getFirst().equals(id)) {
                 base = max(base, it.getValue());
                 dots.add(it.getKey());
@@ -56,13 +57,15 @@ public class CCounter<V extends Comparable<V>, K extends Comparable<K>> {
     }
 
     public CCounter<V,K> decrement(V value) {
-        CCounter<V, K> result = new CCounter<>();
+        CCounter<V, K> result = new CCounter<>(this.id);
         Set<Pair<K, Integer>> dots = new HashSet<>();
 
         V base = null;
 
         for (Map.Entry<Pair<K, Integer>, V> it: dotKernel.dotMap.entrySet()) {
+            System.out.println(it.getKey().getFirst());
             if(it.getKey().getFirst().equals(id)) {
+                System.out.println("decrement: " + it.getKey() + " " + it.getValue() + " " + value);
                 base = max(base, it.getValue());
                 dots.add(it.getKey());
             }
@@ -72,6 +75,7 @@ public class CCounter<V extends Comparable<V>, K extends Comparable<K>> {
             result.dotKernel.join(dotKernel.remove(dot));
         }
         result.dotKernel.join(dotKernel.add(id, sub(base, value)));
+        System.out.println("decrement: " + result.dotKernel.toString());
         return result;
 
     }
@@ -95,19 +99,20 @@ public class CCounter<V extends Comparable<V>, K extends Comparable<K>> {
     }
 
     private V add(V base, V value) {
-        if(value instanceof Integer) {
-            if (base == null){
-                return (V) value;
+        if (value instanceof Integer) {
+            if (base == null) {
+                return value;
             }
             return (V) (Integer) ((Integer) base + (Integer) value);
         }
         return null;
     }
 
+
     private V sub(V base, V value) {
         if (value instanceof Integer) {
             if (base == null) {
-                return (V) value;
+                return (V) (Integer) (-1 * (Integer) value);
             }
             return (V) (Integer) ((Integer) base - (Integer) value);
         }
@@ -122,6 +127,16 @@ public class CCounter<V extends Comparable<V>, K extends Comparable<K>> {
             return (V) (Integer) Math.max((Integer) base, (Integer) value);
         }
         return null;
+    }
+
+    public static void main(String[] args) {
+
+        // Test Case 2: Increment and Decrement
+        CCounter<Integer, String> counter2 = new CCounter<>("A");
+        counter2 = counter2.increment(1);
+        counter2 = counter2.decrement(1);
+        System.out.println("Counter 2 after increment and decrement: " + counter2.readValue());
+
     }
 
 }

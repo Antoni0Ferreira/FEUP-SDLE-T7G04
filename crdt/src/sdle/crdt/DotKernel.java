@@ -4,8 +4,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 
-import sdle.crdt.DotContext;
-
 public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
     Map<Pair<K, Integer>, T> dotMap;
 
@@ -46,11 +44,11 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
 
     @Override
     public String toString() {
-        StringBuilder output = new StringBuilder("Kernel: DS ( ");
+        StringBuilder output = new StringBuilder("Kernel: DS (");
         for (Map.Entry<Pair<K, Integer>, T> entry: dotMap.entrySet()) {
             Pair<K, Integer> key = entry.getKey();
             T value = entry.getValue();
-            output.append(key.getFirst()).append(":").append(key.getSecond()).append(":").append(value).append(" ");
+            output.append("(").append(key.getFirst()).append(":").append(key.getSecond()).append(")->").append(value).append(" ");
         }
         output.append(")");
         output.append(c.toString());
@@ -62,26 +60,63 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
 
         Iterator<Map.Entry<Pair<K, Integer>, T>> it = dotMap.entrySet().iterator();
         Iterator<Map.Entry<Pair<K, Integer>, T>> ito = o.dotMap.entrySet().iterator();
+        int i = 0;
+        Map.Entry<Pair<K, Integer>, T> entry = null;
+        Map.Entry<Pair<K, Integer>, T> entryo = null;
 
         do {
 
-            if(it.hasNext() && (!ito.hasNext() || it.next().getKey().compareTo(ito.next().getKey()) < 0)) {
-                Map.Entry<Pair<K, Integer>, T> entry = it.next();
+            if(i == 0){
+                entry = it.next();
+                entryo = ito.next();
+                i++;
+            }
+
+            if(entry != null && (entryo == null || entry.getKey().getFirst().compareTo(entryo.getKey().getFirst()) < 0)) {
                 if(o.c.dotIn(entry.getKey())) {
                     it.remove();
+
+                }
+                if(it.hasNext()){
+                    entry = it.next();
+                }
+                else{
+                    entry = null;
                 }
             }
-            else if(ito.hasNext() && (!it.hasNext() || it.next().getKey().compareTo(ito.next().getKey()) > 0)) {
-                Map.Entry<Pair<K, Integer>, T> entry = ito.next();
-                if(!c.dotIn(entry.getKey())) {
-                    dotMap.put(entry.getKey(), entry.getValue());
+            else if(entryo != null && (entry == null || entry.getKey().getFirst().compareTo(entryo.getKey().getFirst()) > 0)) {
+                if(!c.dotIn(entryo.getKey())) {
+                    dotMap.put(entryo.getKey(), entryo.getValue());
+
                 }
+
+                if(ito.hasNext()){
+                    entryo = ito.next();
+                }
+                else{
+                    entryo = null;
+                }
+
             }
-            else if(it.hasNext() && ito.hasNext()) {
-                it.next();
-                ito.next();
+            else if(entry != null && entryo != null) {
+                System.out.println("hello!");
+
+                if(it.hasNext()){
+                    entry = it.next();
+                }
+                else{
+                    entry = null;
+                }
+
+                if(ito.hasNext()){
+                    entryo = ito.next();
+                }
+                else{
+                    entryo = null;
+                }
+
             }
-        } while(it.hasNext() || ito.hasNext());
+        } while(entry != null || entryo != null);
 
         c.join(o.c);
     }
@@ -91,29 +126,64 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
 
         Iterator<Map.Entry<Pair<K, Integer>, T>> it = dotMap.entrySet().iterator();
         Iterator<Map.Entry<Pair<K, Integer>, T>> ito = o.dotMap.entrySet().iterator();
+        int i = 0;
+        Map.Entry<Pair<K, Integer>, T> entry = null;
+        Map.Entry<Pair<K, Integer>, T> entryo = null;
 
         do {
-            if(it.hasNext() && (!ito.hasNext() || it.next().getKey().compareTo(ito.next().getKey()) < 0)) {
-                Map.Entry<Pair<K, Integer>, T> entry = it.next();
+
+            if(i == 0){
+                entry = it.next();
+                entryo = ito.next();
+                i++;
+            }
+
+            if(entry != null && (entryo == null || entry.getKey().getFirst().compareTo(entryo.getKey().getFirst()) < 0)) {
                 if(o.c.dotIn(entry.getKey())) {
                     it.remove();
                 }
-            }
-            else if(ito.hasNext() && (!it.hasNext() || it.next().getKey().compareTo(ito.next().getKey()) > 0)) {
-                Map.Entry<Pair<K, Integer>, T> entry = ito.next();
-                if(!c.dotIn(entry.getKey())) {
-                    dotMap.put(entry.getKey(), entry.getValue());
+
+                if(ito.hasNext()){
+                    entryo = ito.next();
+                }
+                else{
+                    entryo = null;
                 }
             }
-            else if(it.hasNext() && ito.hasNext()) {
-                Map.Entry<Pair<K, Integer>, T> entry = it.next();
-                Map.Entry<Pair<K, Integer>, T> entryo = ito.next();
+            else if(entryo != null && (entry == null || entryo.getKey().getFirst().compareTo(entry.getKey().getFirst()) > 0)) {
+                if(!c.dotIn(entryo.getKey())) {
+                    dotMap.put(entryo.getKey(), entryo.getValue());
+                }
+
+                if(ito.hasNext()){
+                    entryo = ito.next();
+                }
+                else{
+                    entryo = null;
+                }
+            }
+            else if(entry != null && entryo != null) {
+
                 if(!entry.getValue().equals(entryo.getValue())) {
                     entry.setValue(join(entry.getValue(), entryo.getValue()));
                 }
 
+                if(it.hasNext()){
+                    entry = it.next();
+                }
+                else{
+                    entry = null;
+                }
+
+                if(ito.hasNext()){
+                    entryo = ito.next();
+                }
+                else{
+                    entryo = null;
+                }
+
             }
-        } while(it.hasNext() || ito.hasNext());
+        } while(entry != null || entryo != null);
 
         c.join(o.c);
     }
@@ -130,11 +200,10 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
         return result;
     }
 
-    public Pair<K, Integer> dotAdd(K key, T value) {
+    public void dotAdd(K key, T value) {
         Pair<K, Integer> dot = c.makeDot(key);
         dotMap.put(dot, value);
 
-        return dot;
     }
 
     public DotKernel<T, K> remove(T val) {
@@ -179,12 +248,35 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
         return result;
     }
 
-
-
-
     private T join(T value1, T value2) {
         return joinable.join(value1, value2);
     }
+
+    public static void main(String[] args) {
+        // Test Case 1: Basic DotKernel Operations
+        Joinable<Integer> integerJoinable = Integer::sum;
+        DotKernel<Integer, String> dotKernel1 = new DotKernel<>(integerJoinable);
+
+        DotKernel<Integer, String> dotKernel2 = new DotKernel<>(integerJoinable);
+
+        dotKernel1.dotAdd("A", 2);
+        dotKernel2.dotAdd("A", 1);
+        dotKernel2.dotAdd("B", 2);
+        dotKernel2.dotAdd("A", 6);
+
+        System.out.println("DotKernel 1: " + dotKernel1);
+        System.out.println("DotKernel 2: " + dotKernel2);
+
+        dotKernel1.deepJoin(dotKernel2);
+
+        System.out.println("DotKernel 1: " + dotKernel1);
+        System.out.println("DotKernel 2: " + dotKernel2);
+
+
+        System.out.println();
+
+    }
+
 
 
 }
