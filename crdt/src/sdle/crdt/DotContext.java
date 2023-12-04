@@ -123,8 +123,6 @@ public class DotContext<K extends Comparable<K>> {
     }
 
     public Pair<K, Integer> makeDot(K id) {
-        // On a valid dot generator, all dots should be compact on the used id
-        // Making the new dot updates the dot generator and returns the dot
 
         // check if id is in causal context
         if (causalContext.containsKey(id)) {

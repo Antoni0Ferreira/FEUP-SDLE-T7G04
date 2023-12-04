@@ -7,7 +7,6 @@ import java.util.Objects;
 
 public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
     Map<Pair<K, Integer>, T> dotMap;
-
     DotContext<K> cbase;
     DotContext<K> c;
 
@@ -93,7 +92,6 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
             else if(entryo != null && (entry == null || entry.getKey().getFirst().compareTo(entryo.getKey().getFirst()) > 0)) {
                 if(!c.dotIn(entryo.getKey())) {
                     dotMap.put(entryo.getKey(), entryo.getValue());
-
                 }
 
                 if(ito.hasNext()){
@@ -105,7 +103,6 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
 
             }
             else if(entry != null && entryo != null) {
-                System.out.println("hello!");
 
                 if(it.hasNext()){
                     entry = it.next();
@@ -150,12 +147,13 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
             }
 
             if(entry != null && (entryo == null || entry.getKey().getFirst().compareTo(entryo.getKey().getFirst()) < 0)) {
+                var dot = entry.getKey();
                 if(o.c.dotIn(entry.getKey())) {
                     it.remove();
                 }
 
                 if(it.hasNext()){
-                    entry = ito.next();
+                    entry = it.next();
                 }
                 else{
                     entry = null;
@@ -274,85 +272,31 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
 
         // Test Case 1: Basic DotKernel Operations
         Joinable<Integer> integerJoinable = Integer::sum;
-/*        DotKernel<Integer, String> dotKernel1 = new DotKernel<>(integerJoinable);
+        DotKernel<Integer, String> dotKernel1 = new DotKernel<>(integerJoinable);
 
         DotKernel<Integer, String> dotKernel2 = new DotKernel<>(integerJoinable);
 
-        dotKernel1.dotAdd("A", 2);
         dotKernel2.dotAdd("A", 1);
         dotKernel2.dotAdd("B", 2);
         dotKernel2.dotAdd("A", 6);
 
-        System.out.println("DotKernel 1: " + dotKernel1);
-        System.out.println("DotKernel 2: " + dotKernel2);
+
 
         dotKernel1.deepJoin(dotKernel2);
 
         System.out.println("DotKernel 1: " + dotKernel1);
-        System.out.println("DotKernel 2: " + dotKernel2);*/
+
+        System.out.println("DotKernel 2: " + dotKernel2);
+
+        dotKernel1.dotAdd("A", 1);
+
+        System.out.println("DotKernel 1: " + dotKernel1);
+        dotKernel1.deepJoin(dotKernel2);
+
+        System.out.println("DotKernel 1: " + dotKernel1);
 
 
         System.out.println("========================================");
-
-        // Test Case 3: Removing Dots by Key
-/*        DotKernel<Integer, String> dotKernel3 = new DotKernel<>(integerJoinable);
-
-        dotKernel3.dotAdd("A", 5);
-        dotKernel3.dotAdd("B", 10);
-
-        System.out.println("Before removal: " + dotKernel3);
-
-        // Removing a dot by key
-        Pair<String, Integer> dotToRemove = new Pair<>("A", 1); // Assuming 1 is the dot version
-        DotKernel<Integer, String> dotKernel4 = dotKernel3.remove(dotToRemove);
-
-        System.out.println("After removing dot (A, 1): " + dotKernel3);
-        System.out.println("After removing dot (A, 1): " + dotKernel4);
-
-        System.out.println("========================================");*/
-
-
-        // Test Case 4: Merging with Conflicting Values
-        DotKernel<Integer, String> dotKernel4 = new DotKernel<>(integerJoinable);
-        DotKernel<Integer, String> dotKernel5 = new DotKernel<>(integerJoinable);
-
-        dotKernel4.dotAdd("A", 3);
-        dotKernel5.dotAdd("A", 7);
-
-        System.out.println("Kernel 4: " + dotKernel4);
-        System.out.println("Kernel 5: " + dotKernel5);
-
-        dotKernel4.deepJoin(dotKernel5);
-
-        System.out.println("Kernel 4 after deepJoin with Kernel 2: " + dotKernel4);
-
-        System.out.println("========================================");
-
-        // Test Case 5: Comprehensive Join Operation
-        DotKernel<Integer, String> kernel1 = new DotKernel<>(integerJoinable);
-        DotKernel<Integer, String> kernel2 = new DotKernel<>(integerJoinable);
-
-        kernel1.dotAdd("X", 1);
-        kernel2.dotAdd("Y", 2);
-        kernel2.dotAdd("Z", 3);
-
-        System.out.println("Kernel 1: " + kernel1);
-        System.out.println("Kernel 2: " + kernel2);
-
-        kernel1.deepJoin(kernel2);
-        kernel2.dotAdd("X", 4);
-        kernel1.deepJoin(kernel2);
-
-        System.out.println("Kernel 1 after multiple deepJoins: " + kernel1);
-
-        kernel1 = kernel1.remove(new Pair<>("Y", 1));
-
-        System.out.println("Kernel 1 after removing dot (Y, 1): " + kernel1);
-
-
-
-
-
 
 
     }

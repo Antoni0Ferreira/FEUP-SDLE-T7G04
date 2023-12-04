@@ -5,7 +5,7 @@ import java.util.Map;
 import java.util.Set;
 
 public class AWORMap<K extends Comparable<K>, V extends Comparable<V>> {
-    private Map<K, AWORSet<K, V>> map;
+    public Map<K, AWORSet<K, V>> map;
 
     public AWORMap() {
         map = new HashMap<>();
@@ -53,7 +53,14 @@ public class AWORMap<K extends Comparable<K>, V extends Comparable<V>> {
 
     @Override
     public String toString() {
-        return "AWORMap{" + "map=" + map + '}';
+        StringBuilder output = new StringBuilder("Map: {\n");
+        for (Map.Entry<K, AWORSet<K, V>> entry : map.entrySet()) {
+            K key = entry.getKey();
+            AWORSet<K, V> set = entry.getValue();
+            output.append("\t").append(key).append(": ").append(set).append("\n");
+        }
+        output.append("}");
+        return output.toString();
     }
 
     // Main method for testing
@@ -118,4 +125,5 @@ public class AWORMap<K extends Comparable<K>, V extends Comparable<V>> {
 
         System.out.println("All test cases completed.");
     }
+
 }
