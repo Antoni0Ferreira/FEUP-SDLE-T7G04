@@ -55,6 +55,14 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
         return output.toString();
     }
 
+    // override compare method between two Pair<K, Integer>
+    public int compare(Pair<K, Integer> p1, Pair<K, Integer> p2) {
+        if (p1.getFirst().compareTo(p2.getFirst()) == 0) {
+            return p1.getSecond().compareTo(p2.getSecond());
+        }
+        return p1.getFirst().compareTo(p2.getFirst());
+    }
+
     public void join(DotKernel<T, K> o) {
         if (this == o) return;
 
@@ -77,7 +85,7 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
                 i++;
             }
 
-            if(entry != null && (entryo == null || entry.getKey().getFirst().compareTo(entryo.getKey().getFirst()) < 0)) {
+            if(entry != null && (entryo == null || compare(entry.getKey(), entryo.getKey()) < 0)) {
                 if(o.c.dotIn(entry.getKey())) {
                     it.remove();
 
@@ -89,7 +97,7 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
                     entry = null;
                 }
             }
-            else if(entryo != null && (entry == null || entry.getKey().getFirst().compareTo(entryo.getKey().getFirst()) > 0)) {
+            else if(entryo != null && (entry == null || compare(entryo.getKey(), entry.getKey()) < 0)) {
                 if(!c.dotIn(entryo.getKey())) {
                     dotMap.put(entryo.getKey(), entryo.getValue());
                 }
@@ -135,6 +143,13 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
 
         do {
 
+            System.out.println("-----");
+            System.out.println(this);
+            System.out.println("===================//===================");
+            System.out.println(o);
+            System.out.println("-----");
+
+
             if(i == 0) {
                 if (it.hasNext()) {
                     entry = it.next();
@@ -146,7 +161,7 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
                 i++;
             }
 
-            if(entry != null && (entryo == null || entry.getKey().getFirst().compareTo(entryo.getKey().getFirst()) < 0)) {
+            if(entry != null && (entryo == null || compare(entry.getKey(), entryo.getKey()) < 0)) {
                 var dot = entry.getKey();
                 if(o.c.dotIn(entry.getKey())) {
                     it.remove();
@@ -159,7 +174,7 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
                     entry = null;
                 }
             }
-            else if(entryo != null && (entry == null || entryo.getKey().getFirst().compareTo(entry.getKey().getFirst()) < 0)) {
+            else if(entryo != null && (entry == null || compare(entryo.getKey(), entry.getKey()) < 0)) {
                 if(!c.dotIn(entryo.getKey())) {
                     dotMap.put(entryo.getKey(), entryo.getValue());
                 }
@@ -276,25 +291,15 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
 
         DotKernel<Integer, String> dotKernel2 = new DotKernel<>(integerJoinable);
 
+        dotKernel1.dotAdd("A", 2);
         dotKernel2.dotAdd("A", 1);
         dotKernel2.dotAdd("B", 2);
         dotKernel2.dotAdd("A", 6);
 
-
-
         dotKernel1.deepJoin(dotKernel2);
 
         System.out.println("DotKernel 1: " + dotKernel1);
-
         System.out.println("DotKernel 2: " + dotKernel2);
-
-        dotKernel1.dotAdd("A", 1);
-
-        System.out.println("DotKernel 1: " + dotKernel1);
-        dotKernel1.deepJoin(dotKernel2);
-
-        System.out.println("DotKernel 1: " + dotKernel1);
-
 
         System.out.println("========================================");
 
