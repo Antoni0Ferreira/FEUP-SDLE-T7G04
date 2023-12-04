@@ -1,14 +1,13 @@
 package sdle.serverClient;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class ServerRing {
 
-    private Map<Integer, String> serverTable;
-    public static void main(String[] args) {
-        int numberOfServers = 5; // Number of servers to simulate
+    private final SortedMap<Long, Server> serverTable;
+
+    public ServerRing(int numberOfServers) {
+        serverTable = new TreeMap<Long, Server>();
 
         // Starting IP address in the loopback range (127.0.0.0/8)
         int ipStart = 1; // Start with 127.0.0.1
@@ -16,26 +15,39 @@ public class ServerRing {
         // Use a common port for simplicity, but you can also use different ports
         int port = 8000;
 
-        List<Server> servers = new ArrayList<>();
-
         for (int i = 0; i < numberOfServers; i++) {
             String ipAddress = "127.0.0." + (ipStart + i);
             Server server = new Server(ipAddress, port);
             server.start();
-            servers.add(server);
+
+            addServer(server);
+
             System.out.println("Created server at " + ipAddress + ":" + port);
         }
-
-        // Add logic to manage the servers as needed
     }
 
-    public void addServer(Integer serverId, String ipAddress) {
-        Integer hashedServerId = serverId.hashCode();
-        serverTable.put(hashedServerId, ipAddress);
+    public void updateServersTable() {
+        for (Map.Entry<Long, Server> entry : serverTable.entrySet()) {
+            entry.getValue().setServerTable(serverTable);
+        }
     }
 
-    public void removeServer(Integer serverId) {
-        Integer hashedServerId = serverId.hashCode();
-        serverTable.remove(hashedServerId);
+    public void addServer(Server server) {
+        long ipAddressHash = MurmurHash.hash_x86_32(server.getIpAddress().getBytes(), server.getIpAddress().getBytes().length, 0);
+        serverTable.put(ipAddressHash, server);
+        updateServersTable();
     }
+
+    public void removeServer(Server server) {
+        long ipAddressHash = MurmurHash.hash_x86_32(server.getIpAddress().getBytes(), server.getIpAddress().getBytes().length, 0);
+        serverTable.remove(ipAddressHash);
+        updateServersTable();
+    }
+
+    public static void main(String[] args) {
+        int numberOfServers = 5; // Number of servers to simulate
+        ServerRing serverRing = new ServerRing(numberOfServers);
+    }
+
+
 }
