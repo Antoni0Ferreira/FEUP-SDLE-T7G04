@@ -21,7 +21,10 @@ public class AWORMap<K extends Comparable<K>, V extends Comparable<V>> {
         if (map.containsKey(key)) {
             AWORSet<K, V> set = map.get(key);
             set = set.remove(value);
-            map.put(key, set);
+            if(!set.read().isEmpty())
+                map.put(key, set);
+            else
+                map.remove(key);
         }
     }
 
@@ -120,8 +123,6 @@ public class AWORMap<K extends Comparable<K>, V extends Comparable<V>> {
 
         System.out.println("==================================================");
 
-        // Additional test cases can be added following the same structure,
-        // involving more complex scenarios and combinations of operations.
 
         System.out.println("All test cases completed.");
     }

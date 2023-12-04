@@ -9,7 +9,6 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
     Map<Pair<K, Integer>, T> dotMap;
     DotContext<K> cbase;
     DotContext<K> c;
-
     private final Joinable<T> joinable;
 
     public DotKernel(Joinable<T> joinable) {
@@ -143,13 +142,6 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
 
         do {
 
-            System.out.println("-----");
-            System.out.println(this);
-            System.out.println("===================//===================");
-            System.out.println(o);
-            System.out.println("-----");
-
-
             if(i == 0) {
                 if (it.hasNext()) {
                     entry = it.next();
@@ -189,6 +181,9 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
             else if(entry != null && entryo != null) {
 
                 if(!entry.getValue().equals(entryo.getValue())) {
+                    var aux1 = entry.getValue();
+                    var aux2 = entryo.getValue();
+
                     entry.setValue(join(entry.getValue(), entryo.getValue()));
                 }
 

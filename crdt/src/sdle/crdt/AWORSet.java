@@ -7,7 +7,7 @@ import java.util.Iterator;
 public class AWORSet<K extends Comparable<K>, E extends Comparable<E>> {
      // Dot kernel
     private K id;
-    private Joinable<E> joinable = (Joinable<E>) new NumericJoin();
+    private Joinable<E> joinable = (Joinable<E>) new CCounterJoin();
     private DotKernel<E, K> dotKernel = new DotKernel<>(joinable);
 
     public AWORSet() {
@@ -72,7 +72,7 @@ public class AWORSet<K extends Comparable<K>, E extends Comparable<E>> {
     }
 
     public void join(AWORSet<K, E> o) {
-        dotKernel.join(o.dotKernel);
+        dotKernel.deepJoin(o.dotKernel);
 
     }
 

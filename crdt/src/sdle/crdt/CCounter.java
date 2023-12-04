@@ -31,6 +31,10 @@ public class CCounter<V extends Comparable<V>, K extends Comparable<K>> implemen
         return dotKernel.c;
     }
 
+    public K getId() {
+        return id;
+    }
+
     public void toString(StringBuilder output) {
         output.append("Casual Counter: ").append(id).append(" = ").append(dotKernel.toString());
     }
@@ -144,7 +148,7 @@ public class CCounter<V extends Comparable<V>, K extends Comparable<K>> implemen
         // Test Case 2: Decrementing the Counter
         CCounter<Integer, String> counter2 = new CCounter<>("Counter2");
         counter2.increment(10);
-        System.out.println("Counter2 before decrementing: " + counter2.readValue());
+        System.out.println("Counter2 before incrementing by 10: " + counter2.readValue());
         counter2.decrement(3);
         System.out.println("Counter2 after decrementing by 3: " + counter2.readValue());
 
@@ -285,5 +289,10 @@ public class CCounter<V extends Comparable<V>, K extends Comparable<K>> implemen
     @Override
     public int compareTo(CCounter<V, K> o) {
         return readValue().compareTo(o.readValue());
+    }
+
+    public void setValue(V combinedValue) {
+        dotKernel = new DotKernel<>(joinable);
+        dotKernel.join(dotKernel.add(id, combinedValue));
     }
 }
