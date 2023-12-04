@@ -1,126 +1,121 @@
 package sdle.crdt;
 
-import jdk.jshell.Snippet;
-
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
-public class AWORMap<E extends Comparable<E>, K extends Comparable<K>> {
+public class AWORMap<K extends Comparable<K>, V extends Comparable<V>> {
+    private Map<K, AWORSet<K, V>> map;
 
-    private Joinable<E> joinable = new Joinable<E>() {
-        @Override
-        public E join(E a, E b) {
-            return a.compareTo(b) > 0 ? a : b;
+    public AWORMap() {
+        map = new HashMap<>();
+    }
+
+    public void put(K key, V value) {
+        AWORSet<K, V> set = map.getOrDefault(key, new AWORSet<>(key));
+        set = set.add(value);
+        map.put(key, set);
+    }
+
+    public void remove(K key, V value) {
+        if (map.containsKey(key)) {
+            AWORSet<K, V> set = map.get(key);
+            set = set.remove(value);
+            map.put(key, set);
         }
-    };
-
-    private DotKernel<E, K> dotKernel = new DotKernel<>(joinable);
-    private final K id;
-
-    public AWORMap(K id) {
-        this.id = id;
     }
 
-    public AWORMap(AWORMap<E, K> other) {
-        this.id = other.id;
-        this.dotKernel = new DotKernel<>(other.dotKernel, joinable);
-    }
-
-    public AWORMap(K id, DotContext<K> jointc) {
-        this.id = id;
-        this.dotKernel = new DotKernel<>(jointc, joinable);
-    }
-
-    public DotContext<K> getContext() {
-        return dotKernel.c;
-    }
-
-    public String toString() {
-        StringBuilder output = new StringBuilder("AWORMap: ");
-        for (Map.Entry<Pair<K, Integer>, E> entry: dotKernel.dotMap.entrySet()) {
-            Pair<K, Integer> key = entry.getKey();
-            E value = entry.getValue();
-            output.append(key.getFirst()).append(":").append(key.getSecond()).append(":").append(value).append(" ");
+    public Set<V> get(K key) {
+        if (map.containsKey(key)) {
+            return map.get(key).read();
         }
-        output.append(dotKernel.c.toString());
-        return output.toString();
+        return null; // Or return an empty set
     }
 
-    public Map<K, E> read() {
-        Map<K, E> result = new HashMap<>();
-        for(Map.Entry<Pair<K,Integer>, E> entry: dotKernel.dotMap.entrySet()) {
-            Pair<K, Integer> key = entry.getKey();
-            E value = entry.getValue();
-            if(result.get(key.getFirst()) == null || result.get(key.getFirst()).compareTo(value) < 0) {
-                result.put(key.getFirst(), value);
-            }
+    public void join(AWORMap<K, V> other) {
+        for (Map.Entry<K, AWORSet<K, V>> entry : other.map.entrySet()) {
+            K key = entry.getKey();
+            AWORSet<K, V> otherSet = entry.getValue();
+            AWORSet<K, V> thisSet = map.getOrDefault(key, new AWORSet<>(key));
+            thisSet.join(otherSet);
+            map.put(key, thisSet);
         }
-        return result;
     }
 
+    // For testing purposes
     public boolean containsKey(K key) {
-        for(Map.Entry<Pair<K,Integer>, E> entry: dotKernel.dotMap.entrySet()) {
-            Pair<K, Integer> k = entry.getKey();
-            if(k.getFirst().equals(key)) {
-                return true;
-            }
-        }
-        return false;
+        return map.containsKey(key);
     }
 
-    public AWORMap<E, K> add(K key, E val) {
-        AWORMap<E, K> result = new AWORMap<>(this);
-        Pair<K, Integer> highestDot = findHighestDot(key);
-        if (highestDot != null && highestDot.getFirst().equals(id)) {
-            result.dotKernel.dotAdd(key, val);
-        } else {
-            result.dotKernel.dotAdd(id, val);
-        }
-        return result;
+    public boolean containsKeyValue(K key, V value) {
+        return map.containsKey(key) && map.get(key).in(value);
     }
 
-    public AWORMap<E, K> remove(K key, E val) {
-        AWORMap<E, K> result = new AWORMap<>(this);
-        Pair<K, Integer> highestDot = findHighestDot(key);
-
-        if (highestDot != null && highestDot.getFirst().equals(id)) {
-            result.dotKernel.remove(new Pair<>(key, highestDot.getSecond())); // Remove specific dot
-        } else {
-            result.dotKernel.remove(val); // Remove all occurrences of the value
-        }
-
-        return result;
+    @Override
+    public String toString() {
+        return "AWORMap{" + "map=" + map + '}';
     }
 
-    AWORMap<E, K> reset() {
-        AWORMap<E, K> result = new AWORMap<>(this);
-        result.dotKernel = dotKernel.removeAll();
-        return result;
-    }
-
-    public void join(AWORMap<E, K> other) {
-        dotKernel.join(other.dotKernel);
-    }
-
-    private Pair<K, Integer> findHighestDot(K key) {
-        Pair<K, Integer> highestDot = null;
-        for(Map.Entry<Pair<K,Integer>, E> entry: dotKernel.dotMap.entrySet()) {
-            Pair<K, Integer> k = entry.getKey();
-            if(k.getFirst().equals(key)) {
-                if(highestDot == null || highestDot.getSecond() < k.getSecond()) {
-                    highestDot = k;
-                }
-            }
-        }
-        return highestDot;
-    }
-
+    // Main method for testing
     public static void main(String[] args) {
-        AWORMap<String, Integer> replica1 = new AWORMap<>(1);
-        AWORMap<String, Integer> replica2 = new AWORMap<>(2);
+        System.out.println("==================================================");
 
-        //replica1 = replica1.add("a", "1");
-        //replica1 = replica1.add("a", "2");
+        // Test Case 1: Adding Elements to Map
+        System.out.println("Test Case 1: Adding Elements to Map");
+        AWORMap<String, Integer> map1 = new AWORMap<>();
+        map1.put("fruit", 1);
+        map1.put("fruit", 2);
+        map1.put("vegetable", 3);
+        System.out.println("Map1 after adding elements: " + map1);
+
+        System.out.println("==================================================");
+
+        // Test Case 2: Removing Element from Map
+        System.out.println("Test Case 2: Removing Element from Map");
+        AWORMap<String, Integer> map2 = new AWORMap<>();
+        map2.put("fruit", 1);
+        map2.put("fruit", 2);
+        map2.remove("fruit", 1);
+        System.out.println("Map2 after removing element: " + map2);
+
+        System.out.println("==================================================");
+
+        // Test Case 3: Resetting the Map
+        System.out.println("Test Case 3: Resetting the Map");
+        AWORMap<String, Integer> map3 = new AWORMap<>();
+        map3.put("fruit", 1);
+        map3.put("fruit", 2);
+        map3 = new AWORMap<>(); // Reset by reinitializing
+        System.out.println("Map3 after reset: " + map3);
+
+        System.out.println("==================================================");
+
+        // Test Case 4: Joining Two Maps
+        System.out.println("Test Case 4: Joining Two Maps");
+        AWORMap<String, Integer> map4 = new AWORMap<>();
+        AWORMap<String, Integer> map5 = new AWORMap<>();
+        map4.put("fruit", 1);
+        map5.put("vegetable", 3);
+        map4.join(map5);
+        System.out.println("Map4 after joining with Map5: " + map4);
+
+        System.out.println("==================================================");
+
+        // Test Case 5: Complex Operations on a Single Map
+        System.out.println("Test Case 5: Complex Operations on a Single Map");
+        AWORMap<String, Integer> map6 = new AWORMap<>();
+        map6.put("fruit", 1);
+        map6.put("fruit", 2);
+        map6.remove("fruit", 1);
+        System.out.println("Map6 after various operations: " + map6);
+        map6 = new AWORMap<>(); // Reset
+        System.out.println("Map6 after reset: " + map6);
+
+        System.out.println("==================================================");
+
+        // Additional test cases can be added following the same structure,
+        // involving more complex scenarios and combinations of operations.
+
+        System.out.println("All test cases completed.");
     }
-
 }

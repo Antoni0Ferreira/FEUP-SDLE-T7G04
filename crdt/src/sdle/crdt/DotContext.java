@@ -69,28 +69,53 @@ public class DotContext<K extends Comparable<K>> {
 
     public void compact() {
         boolean flag;
+        int i = 0;
+        Iterator<Pair<K, Integer>> sit = dotCloud.iterator();
         do {
             flag = false;
-            Iterator<Pair<K, Integer>> sit = dotCloud.iterator();
-            while(sit.hasNext()) {
-                Pair<K, Integer> pair = sit.next();
-                if(!causalContext.containsKey(pair.getFirst())) {
-                    if(pair.getSecond() == 1){
-                        causalContext.put(pair.getFirst(), pair.getSecond());
+
+            Pair<K, Integer> entry = null;
+            if (i == 0) {
+                if(sit.hasNext()){
+                    entry = sit.next();
+                    i++;
+                } else {
+                    entry = null;
+                }
+            }
+
+            while(entry != null) {
+                if(!causalContext.containsKey(entry.getFirst())) {
+                    if(entry.getSecond() == 1){
+                        causalContext.put(entry.getFirst(), entry.getSecond());
                         sit.remove();
+                        if(!sit.hasNext()) entry = null;
+                        else entry = sit.next();
                         flag = true;
                     } else {
-                        sit.next();
+                        if (sit.hasNext()) {
+                            entry = sit.next();
+                        } else {
+                            entry = null;
+                        }
                     }
                 } else {
-                    if(pair.getSecond() == causalContext.get(pair.getFirst()) + 1) {
-                        causalContext.put(pair.getFirst(), causalContext.get(pair.getFirst()) + 1);
+                    if(entry.getSecond() == causalContext.get(entry.getFirst()) + 1) {
+                        causalContext.put(entry.getFirst(), causalContext.get(entry.getFirst()) + 1);
                         sit.remove();
+                        if(!sit.hasNext()) entry = null;
+                        else entry = sit.next();
                         flag = true;
-                    } else if (pair.getSecond() <= causalContext.get(pair.getFirst())) {
+                    } else if (entry.getSecond() <= causalContext.get(entry.getFirst())) {
                         sit.remove();
+                        if(!sit.hasNext()) entry = null;
+                        else entry = sit.next();
                     } else {
-                        sit.next();
+                        if (sit.hasNext()) {
+                            entry = sit.next();
+                        } else {
+                            entry = null;
+                        }
                     }
                 }
             }
@@ -100,11 +125,15 @@ public class DotContext<K extends Comparable<K>> {
     public Pair<K, Integer> makeDot(K id) {
         // On a valid dot generator, all dots should be compact on the used id
         // Making the new dot updates the dot generator and returns the dot
-        var kib = causalContext.put(id, 1);
-        if(kib != null){
-            causalContext.put(id, kib + 1);
+
+        // check if id is in causal context
+        if (causalContext.containsKey(id)) {
+            causalContext.put(id, causalContext.get(id) + 1);
+            return new Pair<K, Integer>(id, causalContext.get(id));
         }
-        return new Pair<K, Integer>(id, causalContext.get(id));
+        causalContext.put(id, 1);
+        return new Pair<K, Integer>(id, 1);
+
     }
 
     public void insertDot(Pair<K, Integer> d, boolean compactNow) {

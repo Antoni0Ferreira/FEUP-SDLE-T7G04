@@ -3,6 +3,7 @@ package sdle.crdt;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
+import java.util.Objects;
 
 public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
     Map<Pair<K, Integer>, T> dotMap;
@@ -50,7 +51,7 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
             T value = entry.getValue();
             output.append("(").append(key.getFirst()).append(":").append(key.getSecond()).append(")->").append(value).append(" ");
         }
-        output.append(")");
+        output.append(") // ");
         output.append(c.toString());
         return output.toString();
     }
@@ -67,8 +68,13 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
         do {
 
             if(i == 0){
-                entry = it.next();
-                entryo = ito.next();
+                if(it.hasNext()){
+                    entry = it.next();
+                }
+
+                if(ito.hasNext()){
+                    entryo = ito.next();
+                }
                 i++;
             }
 
@@ -132,9 +138,14 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
 
         do {
 
-            if(i == 0){
-                entry = it.next();
-                entryo = ito.next();
+            if(i == 0) {
+                if (it.hasNext()) {
+                    entry = it.next();
+                }
+
+                if (ito.hasNext()) {
+                    entryo = ito.next();
+                }
                 i++;
             }
 
@@ -143,14 +154,14 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
                     it.remove();
                 }
 
-                if(ito.hasNext()){
-                    entryo = ito.next();
+                if(it.hasNext()){
+                    entry = ito.next();
                 }
                 else{
-                    entryo = null;
+                    entry = null;
                 }
             }
-            else if(entryo != null && (entry == null || entryo.getKey().getFirst().compareTo(entry.getKey().getFirst()) > 0)) {
+            else if(entryo != null && (entry == null || entryo.getKey().getFirst().compareTo(entry.getKey().getFirst()) < 0)) {
                 if(!c.dotIn(entryo.getKey())) {
                     dotMap.put(entryo.getKey(), entryo.getValue());
                 }
@@ -215,6 +226,7 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
             if(entry.getValue().equals(val)) {
                 result.c.insertDot(entry.getKey(), false);
                 it.remove();
+
             }
         }
 
@@ -225,10 +237,16 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
     public DotKernel<T, K> remove(Pair<K, Integer> dot) {
         DotKernel<T, K> result = new DotKernel<>(joinable);
 
-        Map.Entry<Pair<K, Integer>, T> entry = (Map.Entry<Pair<K, Integer>, T>) dotMap.get(dot);
-        if(entry != null) {
-            result.c.insertDot(entry.getKey(), false);
-            dotMap.remove(dot);
+        // get all keys from dotMap
+        var keys = dotMap.keySet();
+
+        // remove all dots with the same key as the dot to be removed
+        for (Pair<K, Integer> key : keys) {
+            if (key.getFirst().equals(dot.getFirst()) && Objects.equals(key.getSecond(), dot.getSecond())) {
+                result.c.insertDot(key, false);
+                dotMap.remove(key);
+                break;
+            }
         }
 
         result.c.compact();
@@ -253,9 +271,10 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
     }
 
     public static void main(String[] args) {
+
         // Test Case 1: Basic DotKernel Operations
         Joinable<Integer> integerJoinable = Integer::sum;
-        DotKernel<Integer, String> dotKernel1 = new DotKernel<>(integerJoinable);
+/*        DotKernel<Integer, String> dotKernel1 = new DotKernel<>(integerJoinable);
 
         DotKernel<Integer, String> dotKernel2 = new DotKernel<>(integerJoinable);
 
@@ -270,10 +289,71 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
         dotKernel1.deepJoin(dotKernel2);
 
         System.out.println("DotKernel 1: " + dotKernel1);
-        System.out.println("DotKernel 2: " + dotKernel2);
+        System.out.println("DotKernel 2: " + dotKernel2);*/
 
 
-        System.out.println();
+        System.out.println("========================================");
+
+        // Test Case 3: Removing Dots by Key
+/*        DotKernel<Integer, String> dotKernel3 = new DotKernel<>(integerJoinable);
+
+        dotKernel3.dotAdd("A", 5);
+        dotKernel3.dotAdd("B", 10);
+
+        System.out.println("Before removal: " + dotKernel3);
+
+        // Removing a dot by key
+        Pair<String, Integer> dotToRemove = new Pair<>("A", 1); // Assuming 1 is the dot version
+        DotKernel<Integer, String> dotKernel4 = dotKernel3.remove(dotToRemove);
+
+        System.out.println("After removing dot (A, 1): " + dotKernel3);
+        System.out.println("After removing dot (A, 1): " + dotKernel4);
+
+        System.out.println("========================================");*/
+
+
+        // Test Case 4: Merging with Conflicting Values
+        DotKernel<Integer, String> dotKernel4 = new DotKernel<>(integerJoinable);
+        DotKernel<Integer, String> dotKernel5 = new DotKernel<>(integerJoinable);
+
+        dotKernel4.dotAdd("A", 3);
+        dotKernel5.dotAdd("A", 7);
+
+        System.out.println("Kernel 4: " + dotKernel4);
+        System.out.println("Kernel 5: " + dotKernel5);
+
+        dotKernel4.deepJoin(dotKernel5);
+
+        System.out.println("Kernel 4 after deepJoin with Kernel 2: " + dotKernel4);
+
+        System.out.println("========================================");
+
+        // Test Case 5: Comprehensive Join Operation
+        DotKernel<Integer, String> kernel1 = new DotKernel<>(integerJoinable);
+        DotKernel<Integer, String> kernel2 = new DotKernel<>(integerJoinable);
+
+        kernel1.dotAdd("X", 1);
+        kernel2.dotAdd("Y", 2);
+        kernel2.dotAdd("Z", 3);
+
+        System.out.println("Kernel 1: " + kernel1);
+        System.out.println("Kernel 2: " + kernel2);
+
+        kernel1.deepJoin(kernel2);
+        kernel2.dotAdd("X", 4);
+        kernel1.deepJoin(kernel2);
+
+        System.out.println("Kernel 1 after multiple deepJoins: " + kernel1);
+
+        kernel1 = kernel1.remove(new Pair<>("Y", 1));
+
+        System.out.println("Kernel 1 after removing dot (Y, 1): " + kernel1);
+
+
+
+
+
+
 
     }
 
