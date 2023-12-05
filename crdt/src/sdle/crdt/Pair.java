@@ -1,8 +1,9 @@
 package sdle.crdt;
 
+import java.io.Serializable;
 import java.util.Objects;
 
-public class Pair<F extends Comparable<F>,S extends Comparable<S>> {
+public class Pair<F extends Comparable<F>,S extends Comparable<S>> implements Serializable {
     private final F first;
     private final S second;
 
