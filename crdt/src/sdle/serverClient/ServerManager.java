@@ -1,7 +1,5 @@
 package sdle.serverClient;
 
-import sdle.crdt.Pair;
-
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.net.Socket;
@@ -34,7 +32,7 @@ public class ServerManager {
 
         this.portNumber = 8000;
         this.ipAddress = "127.0.0.1";
-        this.findToken("src/sdle/serverClient/serverManagerToken.txt");
+        this.findToken("sdle/serverClient/serverManagerToken.txt");
         System.out.println("Server manager token: " + this.token);
     }
 
@@ -58,42 +56,41 @@ public class ServerManager {
         this.token = storedToken;
     }
 
-    public void updateServersTable() {
+    public void broadcastMessage(Message message) {
+        System.out.println("Broadcasting message with type: " + message.getType() + " and content: " + message.getContent());
         try {
             // iterate server table and send it to the IP address
             for (Map.Entry<Long, String> entry : serverTable.entrySet()) {
                 String ipAddress = entry.getValue();
                 SocketChannel server = SocketChannel.open(new InetSocketAddress(ipAddress, 8000));
 
-                Message message = new Message(Message.Type.UPDATE_TABLE, this.serverTable);
                 message.sendMessage(server);
             }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-
     }
 
     public void addServer(String ipAddress) {
         long ipAddressHash = MurmurHash.hash_x86_32(ipAddress.getBytes(), ipAddress.getBytes().length, 0);
         serverTable.put(ipAddressHash, ipAddress);
-        updateServersTable();
+        Message message = new Message(Message.Type.UPDATE_TABLE, this.serverTable);
+        broadcastMessage(message);
     }
 
     public void removeServer(Server server) {
         long ipAddressHash = MurmurHash.hash_x86_32(server.getIpAddress().getBytes(), server.getIpAddress().getBytes().length, 0);
         serverTable.remove(ipAddressHash);
-        updateServersTable();
+        Message message = new Message(Message.Type.UPDATE_TABLE, this.serverTable);
+        broadcastMessage(message);
     }
 
     private void startServerManager() throws IOException, ClassNotFoundException {
 
         this.selector = Selector.open();
-
         ServerSocketChannel serverChannel = ServerSocketChannel.open();
         serverChannel.configureBlocking(false);
         serverChannel.socket().bind(new InetSocketAddress(this.ipAddress, this.portNumber));
-
         serverChannel.register(this.selector, SelectionKey.OP_ACCEPT);
         System.out.println("Server manager started at " + this.ipAddress + ":" + this.portNumber);
 
@@ -122,7 +119,7 @@ public class ServerManager {
                 } else if (key.isReadable()) { // Read data from client
                     this.read(key);
                 } else if (key.isWritable()) { // write data to client...
-                    // (do not needed)
+                    // (do not need)
                 }
             }
         }
@@ -175,6 +172,45 @@ public class ServerManager {
                         }
                     }
                     break;
+                case GET_LIST:
+                    var obj2 = message.getContent();
+                    if(obj2.getClass() == Long.class) {
+                        Long idHashed = (Long) obj2;
+                        boolean foundServer = false;
+                        // Check which server holds the list with the given id
+                        // iterate server table and send it to the IP address
+                        for (Map.Entry<Long, String> entry : serverTable.entrySet()) {
+                            if(entry.getKey() > idHashed) {
+                                foundServer = true;
+                                String ipAddress = entry.getValue();
+                                SocketChannel server = SocketChannel.open(new InetSocketAddress(ipAddress, 8000));
+                                System.out.println("Sending message to server: " + ipAddress + " with id: " + idHashed);
+                                Message messageToSend = new Message(Message.Type.GET_LIST, idHashed);
+                                messageToSend.sendMessage(server);
+                                break;
+                            }
+                        }
+                        if(!foundServer) {
+                            // send to the first entry in the server table
+                            String ipAddress = serverTable.get(serverTable.firstKey());
+                            SocketChannel server = SocketChannel.open(new InetSocketAddress(ipAddress, 8000));
+                            System.out.println("Sending message to server: " + ipAddress + " with id: " + idHashed);
+                            Message messageToSend = new Message(Message.Type.GET_LIST, idHashed);
+                            messageToSend.sendMessage(server);
+                        }
+                    }
+                    break;
+                case SEND_LIST:
+                    var obj3 = message.getContent();
+                    if(obj3.getClass() == Long.class) {
+                        Long idHashed = (Long) obj3;
+
+                        // send to the client the IP address of the server that holds the list with the given id
+                        Message messageToSend = new Message(Message.Type.SEND_LIST, this.serverTable.get(idHashed));
+                        messageToSend.sendMessage(clientChannel);
+                        System.out.println("Sending message to client: " + this.serverTable.get(idHashed) + " with id: " + idHashed);
+                    }
+                    break;
                 default:
                     break;
             }
@@ -188,26 +224,6 @@ public class ServerManager {
         System.out.println("Server table:");
         for (Map.Entry<Long, String> entry : serverTable.entrySet()) {
             System.out.println(entry.getKey() + ":" + entry.getValue());
-        }
-    }
-
-    public void sendMessage(Message message, SocketChannel channel) throws IOException {
-
-        try {
-            message.sendMessage(channel);
-        }
-        catch (IOException e) {
-            System.out.println("Error sending message to client: " + message);
-            e.printStackTrace();
-        }
-    }
-
-    public Message receiveMessage(SocketChannel channel) throws IOException {
-
-        try {
-            return Message.readMessage(channel);
-        } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
         }
     }
 

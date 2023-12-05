@@ -1,7 +1,5 @@
 package sdle.serverClient;
 
-import sdle.crdt.Pair;
-
 import java.io.*;
 import java.net.ServerSocket;
 import java.net.InetSocketAddress;
@@ -33,21 +31,10 @@ public class Server {
         this.serverTable = new TreeMap<Long, String>();
         this.serverManagerAddress = new InetSocketAddress("127.0.0.1", 8000);
 
-        this.findToken("src/sdle/serverClient/serverToken.txt");
+        this.findToken("sdle/serverClient/serverToken.txt");
 
         System.out.println("Server token: " + this.token);
 
-        try {
-            System.out.println("Starting server on " + this.ipAddress + ":" + this.portNumber);
-            // Create a server socket and bind it to the specified IP address and port number
-            serverSocket = new ServerSocket();
-            serverSocket.bind(new InetSocketAddress(this.ipAddress, this.portNumber));
-            System.out.println(serverSocket.getInetAddress());
-            System.out.println("Server started at " + this.ipAddress + ":" + this.portNumber);
-        } catch (IOException e) {
-            System.out.println("Could not start server on " + this.ipAddress + ":" + this.portNumber);
-            e.printStackTrace();
-        }
     }
 
     // copy constructor
@@ -68,6 +55,9 @@ public class Server {
         // Register the server socket channel, indicating an interest in accepting new connections
         ServerSocketChannel serverChannel = ServerSocketChannel.open();
         serverChannel.configureBlocking(false);
+
+        serverChannel.socket().bind(new InetSocketAddress(this.ipAddress, this.portNumber));
+
         serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 
         if(!authenticate()){
@@ -77,8 +67,6 @@ public class Server {
 
         // Wait for an event one of the registered channels
         while (true) {
-
-            printStatus();
 
             // This may block for a long time. Upon returning, the selected set contains keys of the ready channels
             int numKeys = selector.select();
@@ -99,6 +87,8 @@ public class Server {
                     // write(key);
                 }
             }
+
+            printStatus();
 
             // Remove the selected keys, because we've dealt with them
             selector.selectedKeys().clear();
@@ -150,8 +140,6 @@ public class Server {
         }
 
         return true;
-
-
     }
 
     public void accept(SelectionKey key) throws IOException {
@@ -183,9 +171,19 @@ public class Server {
             switch (message.getType()){
                 case UPDATE_TABLE:
                     var obj = message.getContent();
-                    if(obj.getClass() == SortedMap.class) {
+                    if(obj.getClass() == TreeMap.class) {
                         SortedMap<Long, String> serverTable = (SortedMap<Long, String>) obj;
                         this.setServerTable(serverTable);
+                    }
+                    break;
+                case GET_LIST:
+                    var obj2 = message.getContent();
+                    if(obj2.getClass() == Long.class) {
+
+                        Long idHashed = (Long) obj2;
+                        String serverIp = this.serverTable.get(idHashed);
+                        Message messageToSend = new Message(Message.Type.SEND_LIST, serverIp);
+                        messageToSend.sendMessage(channel);
                     }
                     break;
                 default:

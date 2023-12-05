@@ -23,29 +23,29 @@ public class Client {
     public void startClient() throws IOException, InterruptedException {
         SocketChannel server = SocketChannel.open(serverAddress);
 
-        for(int i = 0; i < 10; i++) {
+/*        for(int i = 0; i < 10; i++) {
             sendRandomLong(server);
             TimeUnit.SECONDS.sleep(1);
         }
         // Close the socket
-        server.close();
+        server.close();*/
     }
 
     public void sendRandomLong(SocketChannel server) throws IOException {
         // Generate a random long value
         long randomLong = new Random().nextLong();
+        long idHashed = MurmurHash.hash_x86_32(Long.toString(randomLong).getBytes(), Long.toString(randomLong).getBytes().length, 0);
 
-        // Send the long value to the server
-        ByteBuffer buffer = ByteBuffer.allocate(1024);
-        buffer.putLong(randomLong);
-        server.write(buffer);
+        Message message = new Message(Message.Type.GET_LIST, idHashed);
+        message.sendMessage(server);
 
-        System.out.println("Sent long value to server: " + randomLong);
+        System.out.println("Sent long value to server: " + idHashed);
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {
         // Example usage
         Client client = new Client("127.0.0.1", 8000);
         client.startClient();
+        client.sendRandomLong(SocketChannel.open(client.serverAddress));
     }
 }

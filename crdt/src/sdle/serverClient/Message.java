@@ -15,6 +15,8 @@ public class Message implements Serializable {
 
         // Server Manager
         UPDATE_TABLE,
+        GET_LIST,
+        SEND_LIST,
 
 
     }
