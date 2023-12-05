@@ -5,9 +5,11 @@ import java.util.*;
 public class ServerRing {
 
     private final SortedMap<Long, Server> serverTable;
+    private final List<Thread> serverThreads;
 
     public ServerRing(int numberOfServers) {
         serverTable = new TreeMap<Long, Server>();
+        serverThreads = new ArrayList<>();
 
         // Starting IP address in the loopback range (127.0.0.0/8)
         int ipStart = 1; // Start with 127.0.0.1
@@ -18,9 +20,12 @@ public class ServerRing {
         for (int i = 0; i < numberOfServers; i++) {
             String ipAddress = "127.0.0." + (ipStart + i);
             Server server = new Server(ipAddress, port);
-            server.start();
 
             addServer(server);
+
+            Thread serverThread = new Thread(server);
+            serverThread.start();
+            serverThreads.add(serverThread);
 
             System.out.println("Created server at " + ipAddress + ":" + port);
         }

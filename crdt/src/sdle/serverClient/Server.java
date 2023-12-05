@@ -1,12 +1,14 @@
 package sdle.serverClient;
 
+import java.io.DataInputStream;
 import java.net.ServerSocket;
 import java.net.InetSocketAddress;
 import java.io.IOException;
+import java.net.Socket;
 import java.util.SortedMap;
 import java.util.TreeMap;
 
-public class Server {
+public class Server implements Runnable {
     private String ipAddress;
     private int portNumber;
     private ServerSocket serverSocket;
@@ -29,6 +31,54 @@ public class Server {
         }
     }
 
+    private void handleClientConnection(Socket clientSocket) {
+        try (DataInputStream dis = new DataInputStream(clientSocket.getInputStream())) {
+            // Read the long value sent by the client
+            long receivedLong = dis.readLong();
+            System.out.println("Received long value from client: " + receivedLong);
+        } catch (IOException e) {
+            System.out.println("Error handling client connection: " + e.getMessage());
+            // Handle exception
+        } finally {
+            // Close client socket
+            try {
+                clientSocket.close();
+            } catch (IOException e) {
+                // Handle exception
+            }
+        }
+    }
+
+    @Override
+    public void run() {
+        try {
+            serverSocket = new ServerSocket(portNumber);
+            System.out.println("Server started on " + ipAddress + ":" + portNumber);
+
+            while (!Thread.currentThread().isInterrupted()) {
+                // Accept a client connection
+                Socket clientSocket = serverSocket.accept();
+                System.out.println("Client connected");
+
+                // Handle client connection in a separate method
+                handleClientConnection(clientSocket);
+            }
+        } catch (IOException e) {
+            System.out.println("Server error: " + e.getMessage());
+            // Handle exception
+
+        } finally {
+            // Close server socket
+            if (serverSocket != null && !serverSocket.isClosed()) {
+                try {
+                    serverSocket.close();
+                } catch (IOException e) {
+                    // Handle exception
+                }
+            }
+        }
+    }
+
     public String getIpAddress() {
         return ipAddress;
     }
@@ -41,9 +91,9 @@ public class Server {
         this.serverTable = serverTable;
     }
 
-    // Method to start the server (for example, start listening for connections)
-    public void start() {
-        // Implementation of your server's logic (e.g., accept client connections)
+    // Method to deal with the client's request
+    public void handleRequest() {
+        // read from the client's socket and print the received message
 
     }
 
