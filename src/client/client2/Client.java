@@ -1,22 +1,18 @@
-package client;
+package client.client2;
 
 import utils.Message;
 import utils.MurmurHash;
+import utils.Database;
 
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.InetSocketAddress;
-import java.net.Socket;
-import java.nio.ByteBuffer;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.util.Map;
+import java.util.ArrayList;
 import java.util.Random;
-import java.util.concurrent.TimeUnit;
 
 public class Client {
+    private String filepathPrefix = "client2-db/";
     private String serverManagerIp;
     private int serverPort;
     private InetSocketAddress serverManagerSocketAddress;
@@ -69,15 +65,17 @@ public class Client {
         System.out.println("Select an option: ");
         System.out.println("1. Create new List");
         System.out.println("2. Get List");
-        System.out.println("3. Exit");
+        System.out.println("3. Delete list");
+        System.out.println("4. Push list");
+        System.out.println("5. Pull list");
+        System.out.println("9 Exit");
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String input = reader.readLine();
 
         InputObj inputObj = new InputObj(input);
 
-        if(input.equals("2")){
-            // ask for list id
+        if(input.equals("2") || input.equals("3") || input.equals("4") || input.equals("5")){
             System.out.println("Input list id: ");
             input = reader.readLine();
             inputObj.setListId(input);
@@ -88,12 +86,9 @@ public class Client {
 
     private InputObj getInsideListInput() throws IOException{
         System.out.println("Select an option: ");
-        System.out.println("1. Add/update item");
+        System.out.println("1. Add or update item");
         System.out.println("2. Remove item");
-        System.out.println("3. Delete list");
-        System.out.println("4. Push list");
-        System.out.println("5. Pull list");
-        System.out.println("6. Exit");
+        System.out.println("9. Exit");
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String input = reader.readLine();
@@ -112,29 +107,42 @@ public class Client {
             case "2":
                 System.out.println("Input item name: ");
                 input = reader.readLine();
-                inputObj.setItemName("");
-
+                inputObj.setItemName(input);
+                inputObj.setQuantity(0);
+                break;
+            case "9":
+                insideList = false;
+                break;
         }
-
 
         return inputObj;
     }
 
-    private void communicate(InputObj input) throws IOException {
+    private void communicate(InputObj input) throws IOException, ClassNotFoundException {
         if(!insideList){
             switch (input.getOption()){
                 case "1":
-                    Message message1 = new Message(Message.Type.CREATE_LIST, "");
-                    message1.sendMessage(SocketChannel.open(serverManagerSocketAddress));
+                    Message request1 = new Message(Message.Type.CREATE_LIST, "");
+                    request1.sendMessage(SocketChannel.open(serverManagerSocketAddress));
 
-                    //TODO - Receive response
+                    Message response1 = Message.readMessage(SocketChannel.open(serverManagerSocketAddress));
+                    var list = response1.getContent();
+                    if(list.getClass() == ArrayList.class){
+                        System.out.println("List created successfully");
+                        Database.writeToFile(list, filepathPrefix + "1.ser" );  /* TODO - Replace with List id: response1.getContent()... */
+                        insideList = true;
+                    }
+                    else{
+                        System.out.println("Error creating list");
+                    }
+
                     break;
                 case "2":
                     Message message2 = new Message(Message.Type.GET_LIST, "");
                     message2.sendMessage(SocketChannel.open(serverManagerSocketAddress));
 
                     // TODO - Receive response
-                case "3":
+                case "9":
                     System.exit(0);
                     break;
                 default:

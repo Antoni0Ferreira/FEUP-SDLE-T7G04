@@ -253,11 +253,14 @@ public class ServerManager {
                         for (Object obj5 : listObj) {
                             System.out.println(obj5);
                         }
+                        System.out.println("INET: "+ (String) listObj.get(1) + ":" + (Integer) listObj.get(2));
                         SocketChannel clientChannel2 = SocketChannel.open(new InetSocketAddress((String) listObj.get(1), (Integer) listObj.get(2)));
-
+                        System.out.println("Sending list to client: " + clientChannel2);
                         // send list to client
                         Message messageToSend2 = new Message(Message.Type.LIST_CREATED, list);
-                        messageToSend2.sendMessage(clientChannel2);
+                        boolean sent = messageToSend2.sendMessage(clientChannel2);
+                        System.out.println("Message sent to client: " + sent);
+                        System.out.println("Message sent to client: " + clientChannel2);
 
                     }
                     break;
