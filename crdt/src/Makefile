@@ -5,7 +5,7 @@ compile:
 	@javac sdle/serverClient/*.java
 	@javac sdle/shopping/list/*.java
 
-compileCrdt:
+compileCRDT:
 	@echo "Compiling CRDT classes..."
 	@javac *.java
 	@javac sdle/crdt/*.java
