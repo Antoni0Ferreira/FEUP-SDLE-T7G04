@@ -1,0 +1,7 @@
+*.class
+
+crdt/.idea/
+
+crdt/out/
+
+*.iml
