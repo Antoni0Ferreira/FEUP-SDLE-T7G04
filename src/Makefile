@@ -5,21 +5,10 @@ compile:
 	@javac utils/*.java
 	@javac backend/*.java
 	@javac shopping/*.java
+	@javac client/client1/*.java
+	@javac client/client2/*.java
 
-compileCRDT:
-	@echo "Compiling CRDT classes..."
-	@javac *.java
-	@javac crdts/*.java
 
-compileBackend:
-	@echo "Compiling ServerClient classes..."
-	@javac *.java
-	@javac backend/*.java
-
-compileShopping:
-	@echo "Compiling Shopping classes..."
-	@javac *.java
-	@javac /shopping/*.java
 
 clean:
 	@echo "Cleaning..."
