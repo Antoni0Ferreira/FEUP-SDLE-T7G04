@@ -17,6 +17,8 @@ public class Message implements Serializable {
         UPDATE_TABLE,
         GET_LIST,
         SEND_LIST,
+        CREATE_LIST,
+        LIST_CREATED,
 
 
     }

@@ -1,11 +1,14 @@
 package sdle.serverClient;
 
+import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.nio.channels.SocketChannel;
+import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.TimeUnit;
 
@@ -23,12 +26,9 @@ public class Client {
     public void startClient() throws IOException, InterruptedException {
         SocketChannel server = SocketChannel.open(serverAddress);
 
-/*        for(int i = 0; i < 10; i++) {
-            sendRandomLong(server);
-            TimeUnit.SECONDS.sleep(1);
-        }
+
         // Close the socket
-        server.close();*/
+        server.close();
     }
 
     public void sendRandomLong(SocketChannel server) throws IOException {
@@ -40,6 +40,39 @@ public class Client {
         message.sendMessage(server);
 
         System.out.println("Sent long value to server: " + idHashed);
+    }
+
+    public void getClientInput() throws IOException, ClassNotFoundException {
+
+        // Get input from user
+        System.out.println("Select an option: ");
+        System.out.println("1. Create new List");
+        System.out.println("2. Get List");
+        System.out.println("3. Exit");
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
+        String input = reader.readLine();
+
+        switch (input) {
+            case "1":
+                Message message = new Message(Message.Type.CREATE_LIST, null);
+                message.sendMessage(SocketChannel.open(serverAddress));
+
+                // receive list
+                Message receivedMessage = Message.readMessage(SocketChannel.open(serverAddress));
+
+                if(receivedMessage.getType() == Message.Type.LIST_CREATED) {
+                    System.out.println("List created successfully");
+                } else {
+                    System.out.println("Error creating list");
+                }
+
+
+
+                break;
+
+        }
+
     }
 
     public static void main(String[] args) throws IOException, InterruptedException {

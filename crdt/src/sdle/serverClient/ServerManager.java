@@ -18,6 +18,8 @@ public class ServerManager {
 
     private final SortedMap<Long, String> serverTable;
 
+    private final Set<Long> listIds = new HashSet<Long>();
+
     private final ExecutorService serverConnectionPool = Executors.newFixedThreadPool(5);
 
     private Selector selector;
@@ -153,6 +155,18 @@ public class ServerManager {
         dealWithMessage(message, channel);
     }
 
+    private String getServerWithId(long idHashed) {
+
+        // Check which server holds the list with the given id
+        // iterate server table and send it to the IP address
+        for (Map.Entry<Long, String> entry : serverTable.entrySet()) {
+            if(entry.getKey() > idHashed) {
+                return entry.getValue();
+            }
+        }
+        return serverTable.get(serverTable.firstKey());
+    }
+
     private void dealWithMessage(Message message, SocketChannel clientChannel) {
         try {
             switch (message.getType()){
@@ -176,29 +190,13 @@ public class ServerManager {
                     var obj2 = message.getContent();
                     if(obj2.getClass() == Long.class) {
                         Long idHashed = (Long) obj2;
-                        boolean foundServer = false;
-                        // Check which server holds the list with the given id
-                        // iterate server table and send it to the IP address
-                        for (Map.Entry<Long, String> entry : serverTable.entrySet()) {
-                            if(entry.getKey() > idHashed) {
-                                foundServer = true;
-                                String ipAddress = entry.getValue();
-                                SocketChannel server = SocketChannel.open(new InetSocketAddress(ipAddress, 8000));
-                                System.out.println("Sending message to server: " + ipAddress + " with id: " + idHashed);
-                                Message messageToSend = new Message(Message.Type.GET_LIST, idHashed);
-                                messageToSend.sendMessage(server);
-                                break;
-                            }
-                        }
-                        if(!foundServer) {
-                            // send to the first entry in the server table
-                            String ipAddress = serverTable.get(serverTable.firstKey());
-                            SocketChannel server = SocketChannel.open(new InetSocketAddress(ipAddress, 8000));
-                            System.out.println("Sending message to server: " + ipAddress + " with id: " + idHashed);
-                            Message messageToSend = new Message(Message.Type.GET_LIST, idHashed);
-                            messageToSend.sendMessage(server);
-                        }
+
+                        String serverIp = getServerWithId(idHashed);
+                        SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
+                        Message messageToSend = new Message(Message.Type.GET_LIST, idHashed);
+                        messageToSend.sendMessage(server);
                     }
+
                     break;
                 case SEND_LIST:
                     var obj3 = message.getContent();
@@ -209,6 +207,41 @@ public class ServerManager {
                         Message messageToSend = new Message(Message.Type.SEND_LIST, this.serverTable.get(idHashed));
                         messageToSend.sendMessage(clientChannel);
                         System.out.println("Sending message to client: " + this.serverTable.get(idHashed) + " with id: " + idHashed);
+                    }
+                    break;
+                case CREATE_LIST:
+                    Long longRandom = new Random().nextLong();
+                    Long listId = MurmurHash.hash_x86_32(Long.toString(longRandom).getBytes(),
+                            Long.toString(longRandom).getBytes().length, 0);
+
+                    while(listIds.contains(listId)) {
+                        listId = new Random().nextLong();
+                    }
+
+                    String serverIp = getServerWithId(listId);
+                    SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
+
+                    List<Object> content = new ArrayList<Object>();
+                    content.add(listId);
+                    content.add(clientChannel);
+
+                    Message messageToSend = new Message(Message.Type.CREATE_LIST, content);
+                    messageToSend.sendMessage(server);
+
+                    break;
+                case LIST_CREATED:
+
+                    var obj4 = message.getContent();
+                    if(obj4.getClass() == ArrayList.class) {
+
+                        ArrayList<Object> listObj = (ArrayList<Object>) obj4;
+                        ArrayList<Long> list = (ArrayList<Long>) listObj.get(0);
+                        SocketChannel clientChannel2 = (SocketChannel) listObj.get(1);
+
+                        // send list to client
+                        Message messageToSend2 = new Message(Message.Type.LIST_CREATED, list);
+                        messageToSend2.sendMessage(clientChannel2);
+
                     }
                     break;
                 default:

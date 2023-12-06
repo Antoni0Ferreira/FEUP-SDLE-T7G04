@@ -10,15 +10,14 @@ import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
 import java.nio.channels.ServerSocketChannel;
 import java.nio.channels.SocketChannel;
-import java.util.SortedMap;
-import java.util.TreeMap;
+import java.util.*;
 
 public class Server {
     private String ipAddress;
     private int portNumber;
     private ServerSocket serverSocket;
     private Selector selector;
-
+    private Long idHashed;
     private SortedMap<Long, String> serverTable;
 
     private InetSocketAddress serverManagerAddress;
@@ -32,8 +31,9 @@ public class Server {
         this.serverManagerAddress = new InetSocketAddress("127.0.0.1", 8000);
 
         this.findToken("sdle/serverClient/serverToken.txt");
-
         System.out.println("Server token: " + this.token);
+
+        this.idHashed = MurmurHash.hash_x86_32(this.ipAddress.getBytes(), this.ipAddress.getBytes().length, 0);
 
     }
 
@@ -186,6 +186,31 @@ public class Server {
                         messageToSend.sendMessage(channel);
                     }
                     break;
+                case CREATE_LIST:
+
+                    var obj3 = message.getContent();
+                    if(obj3.getClass() == ArrayList.class) {
+
+                        ArrayList<Long> listObj = (ArrayList<Long>) obj3;
+                        Long listId = listObj.get(0);
+
+                        // create a new list
+                        List<Long> list = new ArrayList<Long>();
+                        list.add(listId);
+
+                        List<Object> content = new ArrayList<Object>();
+                        content.add(list);
+                        content.add(listObj.get(1));
+
+                        // send list to client
+                        Message messageToSend = new Message(Message.Type.LIST_CREATED, content);
+                        messageToSend.sendMessage(channel);
+
+                    }
+
+                    break;
+
+
                 default:
                     System.out.println("Unknown message type");
                     break;
