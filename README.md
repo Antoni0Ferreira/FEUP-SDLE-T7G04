@@ -5,3 +5,22 @@
 - Francisco Maldonado (up202004244)
 - Sérgio Carvalhais (up202007544)
 - Tomás Gomes (up202004393)
+
+## Instructions
+
+### Compilation
+
+- `make compile` - to compile all classes
+- `make compileCRDT` - to compile all CRDTs
+- `make compileServerClient` - to compile all server client logic classes
+- `make compileShopping` - to compile all shopping list package classes
+
+### Clean
+- `make clean` - to remove all .class files
+
+### Run
+
+From the `src` folder run:
+- `java backend.ServerManager` to turn on the serverManager
+- `java backend.Server 127.0.0.2 8000` to turn on a server binded to the 127.0.0.2 IP in the port 8000
+- `java client.Client` to turn on the client
