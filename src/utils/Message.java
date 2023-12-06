@@ -61,41 +61,27 @@ public class Message implements Serializable {
     }
 
     public static Message readMessage(SocketChannel channel) throws IOException, ClassNotFoundException {
-
-        ByteBuffer buffer = ByteBuffer.allocate(4);
-
-        int numBytesLength = channel.read(buffer);
-
-        if(numBytesLength == -1) {
-            return null;
+        ByteBuffer lengthBuffer = ByteBuffer.allocate(4);
+        while(lengthBuffer.hasRemaining()) {
+            if(channel.read(lengthBuffer) == -1) {
+                throw new EOFException("End of stream reached before reading the length");
+            }
         }
-
-/*        if(numBytesLength.remaining > 0) {
-            return null;
-        }*/
-
-        buffer.flip();
-        int messageLength = buffer.getInt();
+        lengthBuffer.flip();
+        int messageLength = lengthBuffer.getInt();
 
         ByteBuffer messageBuffer = ByteBuffer.allocate(messageLength);
-        numBytesLength = channel.read(messageBuffer);
-
-        if (numBytesLength == -1) {
-            return null;
+        while(messageBuffer.hasRemaining()) {
+            if(channel.read(messageBuffer) == -1) {
+                throw new EOFException("End of stream reached before reading the full message");
+            }
         }
-
-        /*        if(numBytesLength.remaining > 0) {
-            return null;
-        }*/
-
         messageBuffer.flip();
         byte[] messageBytes = new byte[messageLength];
-
         messageBuffer.get(messageBytes);
 
         ObjectInputStream objINStream = new ObjectInputStream(new ByteArrayInputStream(messageBytes));
         return (Message) objINStream.readObject();
-
     }
 
 

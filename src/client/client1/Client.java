@@ -31,6 +31,7 @@ public class Client {
 
         SocketChannel clientChannel = SocketChannel.open(serverManagerSocketAddress);
         clientChannel.configureBlocking(false);
+
         boolean exit = false;
 
         while(!exit){
@@ -130,21 +131,28 @@ public class Client {
                     Message request1 = new Message(Message.Type.CREATE_LIST, "");
                     request1.sendMessage(serverChannel);
 
-
-
                     Message response1 = Message.readMessage(serverChannel);
-
-                    System.out.println("PIÇA NO CU 3");
-
-                    var list = response1.getContent();
-                    if(list.getClass() == ArrayList.class){
-                        System.out.println("List created successfully");
-                        Database.writeToFile(list, filepathPrefix + "1.ser" );  /* TODO - Replace with List id: response1.getContent()... */
-                        insideList = true;
+                    System.out.println("PIÇA NO CU 1");
+                    if(response1.getType() == Message.Type.LIST_CREATED){
+                        System.out.println("PIÇA NO CU 2");
+                        var list = response1.getContent();
+                        System.out.println(list.toString());
                     }
                     else{
                         System.out.println("Error creating list");
                     }
+
+                    System.out.println("PIÇA NO CU 3");
+
+/*                    var list = response1.getContent();
+                    if(list.getClass() == ArrayList.class){
+                        System.out.println("List created successfully");
+                        Database.writeToFile(list, filepathPrefix + "1.ser" );  *//* TODO - Replace with List id: response1.getContent()... *//*
+                        insideList = true;
+                    }
+                    else{
+                        System.out.println("Error creating list");
+                    }*/
 
 
                     break;

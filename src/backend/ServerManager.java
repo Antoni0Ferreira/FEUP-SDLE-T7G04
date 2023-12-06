@@ -24,6 +24,8 @@ public class ServerManager {
 
     private final Set<Long> listIds = new HashSet<Long>();
 
+    private HashMap<Long, SocketChannel> clientChannels = new HashMap<Long, SocketChannel>();
+
     private final ExecutorService serverConnectionPool = Executors.newFixedThreadPool(5);
 
     private Selector selector;
@@ -211,6 +213,8 @@ public class ServerManager {
                     }
                     break;
                 case CREATE_LIST:
+
+                    // create random list id
                     Long longRandom = new Random().nextLong();
                     Long listId = MurmurHash.hash_x86_32(Long.toString(longRandom).getBytes(),
                             Long.toString(longRandom).getBytes().length, 0);
@@ -219,25 +223,17 @@ public class ServerManager {
                         listId = new Random().nextLong();
                     }
 
+                    // get server from server ring
                     String serverIp = getServerWithId(listId);
                     SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
 
-                    List<Object> content = new ArrayList<Object>();
-                    content.add(listId);
-                    String clientAddress = clientChannel.getRemoteAddress().toString().substring(1);
-                    String clientIp = clientAddress.split(":")[0];
-                    int clientPort = Integer.parseInt(clientAddress.split(":")[1]);
-                    content.add(clientIp);
-                    content.add(clientPort);
+                    // add client channel to hashmap
+                    clientChannels.put(listId, clientChannel);
 
-                    // print list content
-                    System.out.println("List content1: ");
-                    for (Object obj4 : content) {
-                        System.out.println(obj4);
-                    }
-
-                    Message messageToSend = new Message(Message.Type.CREATE_LIST, content);
+                    // send to the server the list id and the client channel
+                    Message messageToSend = new Message(Message.Type.CREATE_LIST, listId);
                     messageToSend.sendMessage(server);
+
 
                     break;
                 case LIST_CREATED:
@@ -249,18 +245,20 @@ public class ServerManager {
 
                         ArrayList<Object> listObj = (ArrayList<Object>) obj4;
                         ArrayList<Long> list = (ArrayList<Long>) listObj.get(0);
-                        System.out.println("List content2: ");
+
+                        System.out.println("List content: ");
                         for (Object obj5 : listObj) {
                             System.out.println(obj5);
                         }
-                        System.out.println("INET: "+ (String) listObj.get(1) + ":" + (Integer) listObj.get(2));
-                        SocketChannel clientChannel2 = SocketChannel.open(new InetSocketAddress((String) listObj.get(1), (Integer) listObj.get(2)));
-                        System.out.println("Sending list to client: " + clientChannel2);
+
+                        // get client channel from hashmap
+                        SocketChannel originalClientChannel = clientChannels.get(listObj.get(1));
+
+
                         // send list to client
                         Message messageToSend2 = new Message(Message.Type.LIST_CREATED, list);
-                        boolean sent = messageToSend2.sendMessage(clientChannel2);
-                        System.out.println("Message sent to client: " + sent);
-                        System.out.println("Message sent to client: " + clientChannel2);
+                        boolean sent = messageToSend2.sendMessage(originalClientChannel);
+                        System.out.println("Message sent to client: " + originalClientChannel);
 
                     }
                     break;
