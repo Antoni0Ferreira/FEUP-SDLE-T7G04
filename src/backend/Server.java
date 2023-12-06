@@ -192,19 +192,18 @@ public class Server {
                     break;
                 case CREATE_LIST:
                     var obj3 = message.getContent();
-                    if(obj3.getClass() == ArrayList.class) {
+                    if(obj3.getClass() == Long.class) {
 
-                        ArrayList<Object> listObj = (ArrayList<Object>) obj3;
-                        Long listId = (Long) listObj.get(0);
+                        Long listId = (Long) obj3;
 
                         // create a new list
                         List<Long> list = new ArrayList<Long>();
                         list.add(listId);
 
+                        // create content list to send
                         List<Object> content = new ArrayList<Object>();
                         content.add(list);
-                        content.add(listObj.get(1));
-                        content.add(listObj.get(2));
+                        content.add(listId);
                         System.out.println("Server manager socket address: " + serverManagerSocketAddress);
                         SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
 
@@ -212,8 +211,6 @@ public class Server {
                         Message messageToSend = new Message(Message.Type.LIST_CREATED, content);
                         messageToSend.sendMessage(serverManager);
 
-                        System.out.println("Created list with id: " + listId + " and content: " + content);
-                        System.out.println("Channel: " + serverManager);
 
                     }
 
