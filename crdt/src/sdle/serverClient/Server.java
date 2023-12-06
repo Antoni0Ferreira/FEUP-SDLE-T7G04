@@ -20,7 +20,7 @@ public class Server {
     private Long idHashed;
     private SortedMap<Long, String> serverTable;
 
-    private InetSocketAddress serverManagerAddress;
+    private InetSocketAddress serverManagerSocketAddress;
 
     private String token;
 
@@ -28,7 +28,7 @@ public class Server {
         this.ipAddress = ipAddress;
         this.portNumber = portNumber;
         this.serverTable = new TreeMap<Long, String>();
-        this.serverManagerAddress = new InetSocketAddress("127.0.0.1", 8000);
+        this.serverManagerSocketAddress = new InetSocketAddress("127.0.0.1", 8000);
 
         this.findToken("sdle/serverClient/serverToken.txt");
         System.out.println("Server token: " + this.token);
@@ -44,7 +44,7 @@ public class Server {
         this.serverSocket = server.serverSocket;
         this.selector = server.selector;
         this.serverTable = server.serverTable;
-        this.serverManagerAddress = server.serverManagerAddress;
+        this.serverManagerSocketAddress = server.serverManagerSocketAddress;
         this.token = server.token;
     }
 
@@ -88,7 +88,7 @@ public class Server {
                 }
             }
 
-            printStatus();
+            // printStatus();
 
             // Remove the selected keys, because we've dealt with them
             selector.selectedKeys().clear();
@@ -109,7 +109,7 @@ public class Server {
     }
 
     public boolean authenticate() throws IOException, ClassNotFoundException {
-        SocketChannel serverManager = SocketChannel.open(serverManagerAddress);
+        SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
 
         Pair<String, String> messageContent = new Pair<String, String>(this.ipAddress, this.token);
 
@@ -187,12 +187,11 @@ public class Server {
                     }
                     break;
                 case CREATE_LIST:
-
                     var obj3 = message.getContent();
                     if(obj3.getClass() == ArrayList.class) {
 
-                        ArrayList<Long> listObj = (ArrayList<Long>) obj3;
-                        Long listId = listObj.get(0);
+                        ArrayList<Object> listObj = (ArrayList<Object>) obj3;
+                        Long listId = (Long) listObj.get(0);
 
                         // create a new list
                         List<Long> list = new ArrayList<Long>();
@@ -201,10 +200,16 @@ public class Server {
                         List<Object> content = new ArrayList<Object>();
                         content.add(list);
                         content.add(listObj.get(1));
+                        content.add(listObj.get(2));
+                        System.out.println("Server manager socket address: " + serverManagerSocketAddress);
+                        SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
 
-                        // send list to client
+                        // send list to ServerManager
                         Message messageToSend = new Message(Message.Type.LIST_CREATED, content);
-                        messageToSend.sendMessage(channel);
+                        messageToSend.sendMessage(serverManager);
+
+                        System.out.println("Created list with id: " + listId + " and content: " + content);
+                        System.out.println("Channel: " + serverManager);
 
                     }
 

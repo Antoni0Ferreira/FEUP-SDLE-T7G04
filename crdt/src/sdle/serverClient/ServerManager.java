@@ -120,8 +120,6 @@ public class ServerManager {
                     this.accept(key);
                 } else if (key.isReadable()) { // Read data from client
                     this.read(key);
-                } else if (key.isWritable()) { // write data to client...
-                    // (do not need)
                 }
             }
         }
@@ -171,7 +169,6 @@ public class ServerManager {
         try {
             switch (message.getType()){
                 case AUTH:
-
                     var obj = message.getContent();
                     if(obj.getClass() == Pair.class) {
                         Pair<String, String> pair = (Pair<String, String>) obj;
@@ -223,7 +220,17 @@ public class ServerManager {
 
                     List<Object> content = new ArrayList<Object>();
                     content.add(listId);
-                    content.add(clientChannel);
+                    String clientAddress = clientChannel.getRemoteAddress().toString().substring(1);
+                    String clientIp = clientAddress.split(":")[0];
+                    int clientPort = Integer.parseInt(clientAddress.split(":")[1]);
+                    content.add(clientIp);
+                    content.add(clientPort);
+
+                    // print list content
+                    System.out.println("List content1: ");
+                    for (Object obj4 : content) {
+                        System.out.println(obj4);
+                    }
 
                     Message messageToSend = new Message(Message.Type.CREATE_LIST, content);
                     messageToSend.sendMessage(server);
@@ -231,12 +238,18 @@ public class ServerManager {
                     break;
                 case LIST_CREATED:
 
+                    System.out.println("Received list created message from server: " + clientChannel.getRemoteAddress());
+
                     var obj4 = message.getContent();
                     if(obj4.getClass() == ArrayList.class) {
 
                         ArrayList<Object> listObj = (ArrayList<Object>) obj4;
                         ArrayList<Long> list = (ArrayList<Long>) listObj.get(0);
-                        SocketChannel clientChannel2 = (SocketChannel) listObj.get(1);
+                        System.out.println("List content2: ");
+                        for (Object obj5 : listObj) {
+                            System.out.println(obj5);
+                        }
+                        SocketChannel clientChannel2 = SocketChannel.open(new InetSocketAddress((String) listObj.get(1), (Integer) listObj.get(2)));
 
                         // send list to client
                         Message messageToSend2 = new Message(Message.Type.LIST_CREATED, list);
