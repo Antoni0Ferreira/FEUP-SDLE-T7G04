@@ -1,7 +1,7 @@
 *.class
 
-crdt/.idea/
+.idea/
 
-crdt/out/
+out/
 
 *.iml
