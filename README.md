@@ -20,7 +20,7 @@
 
 ### Run
 
-From the `crdt/src` folder run:
-- `java sdle.serverClient.ServerManager` to turn on the serverManager
-- `java sdle.serverClient.Server 127.0.0.2 8000` to turn on a server binded to the 127.0.0.2 IP in the port 8000
-- `java sdle.serverClient.Client` to turn on the client
+From the `src` folder run:
+- `java backend.ServerManager` to turn on the serverManager
+- `java backend.Server 127.0.0.2 8000` to turn on a server binded to the 127.0.0.2 IP in the port 8000
+- `java client.Client` to turn on the client
