@@ -19,7 +19,9 @@ public class Message implements Serializable {
         SEND_LIST,
         CREATE_LIST,
         LIST_CREATED,
+        DELETE_LIST,
 
+        LIST_DELETED,
 
     }
 

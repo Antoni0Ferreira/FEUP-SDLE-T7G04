@@ -9,6 +9,7 @@ import java.net.InetSocketAddress;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Random;
 
 public class Client {
@@ -127,14 +128,14 @@ public class Client {
         if(!insideList){
             switch (input.getOption()){
                 case "1":
-                    System.out.println("PIÇA NO CU");
+
                     Message request1 = new Message(Message.Type.CREATE_LIST, "");
                     request1.sendMessage(serverChannel);
 
                     Message response1 = Message.readMessage(serverChannel);
-                    System.out.println("PIÇA NO CU 1");
+
                     if(response1.getType() == Message.Type.LIST_CREATED){
-                        System.out.println("PIÇA NO CU 2");
+
                         var list = response1.getContent();
                         System.out.println(list.toString());
                     }
@@ -142,17 +143,18 @@ public class Client {
                         System.out.println("Error creating list");
                     }
 
-                    System.out.println("PIÇA NO CU 3");
+                    var listObj = response1.getContent();
 
-/*                    var list = response1.getContent();
-                    if(list.getClass() == ArrayList.class){
+                    if(listObj.getClass() == ArrayList.class){
+                        ArrayList<Long> list = (ArrayList<Long>) listObj;
                         System.out.println("List created successfully");
-                        Database.writeToFile(list, filepathPrefix + "1.ser" );  *//* TODO - Replace with List id: response1.getContent()... *//*
+                        var wrote = Database.writeToFile(list.get(0), filepathPrefix +  list.get(1).toString()+ ".ser" );  //* TODO - Replace with List id: response1.getContent()... *//*
+                        System.out.println("Wrote to file: " + wrote);
                         insideList = true;
                     }
                     else{
                         System.out.println("Error creating list");
-                    }*/
+                    }
 
 
                     break;
@@ -160,7 +162,33 @@ public class Client {
                     Message message2 = new Message(Message.Type.GET_LIST, "");
                     message2.sendMessage(SocketChannel.open(serverManagerSocketAddress));
 
-                    // TODO - Receive response
+                case "3": // Delete list
+                    Message message3 = new Message(Message.Type.DELETE_LIST, input.getListId());
+                    message3.sendMessage(SocketChannel.open(serverManagerSocketAddress));
+
+                    Message response3 = Message.readMessage(serverChannel);
+
+                    if(response3.getType() == Message.Type.LIST_DELETED){
+                        System.out.println("List deleted successfully");
+                    }
+                    else{
+                        System.out.println("Error deleting list");
+                    }
+
+                    var listObj3 = response3.getContent();
+
+                    if (listObj3.getClass() == ArrayList.class){
+                        ArrayList<Long> list3 = (ArrayList<Long>) listObj3;
+                        System.out.println("List deleted successfully");
+                        var deleted = Database.deleteFile(filepathPrefix + list3.get(1).toString() + ".ser");
+                        System.out.println("Deleted file: " + deleted);
+                    }
+                    else{
+                        System.out.println("Error deleting list");
+                    }
+
+
+                    break;
                 case "9":
                     System.exit(0);
                     break;

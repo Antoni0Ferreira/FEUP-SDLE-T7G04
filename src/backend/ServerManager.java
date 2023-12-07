@@ -244,7 +244,6 @@ public class ServerManager {
                     if(obj4.getClass() == ArrayList.class) {
 
                         ArrayList<Object> listObj = (ArrayList<Object>) obj4;
-                        ArrayList<Long> list = (ArrayList<Long>) listObj.get(0);
 
                         System.out.println("List content: ");
                         for (Object obj5 : listObj) {
@@ -256,11 +255,40 @@ public class ServerManager {
 
 
                         // send list to client
-                        Message messageToSend2 = new Message(Message.Type.LIST_CREATED, list);
+                        Message messageToSend2 = new Message(Message.Type.LIST_CREATED, listObj);
                         boolean sent = messageToSend2.sendMessage(originalClientChannel);
                         System.out.println("Message sent to client: " + originalClientChannel);
 
                     }
+                    break;
+                case DELETE_LIST:
+                    var obj6 = message.getContent();
+
+                    Long idHashed = (Long) obj6;
+
+                    // get server from server ring
+                    String serverIp2 = getServerWithId(idHashed);
+                    System.out.println("Server to send delete message: " + serverIp2);
+                    SocketChannel server2 = SocketChannel.open(new InetSocketAddress(serverIp2, 8000));
+
+                    // send to the server the list id
+                    Message messageToSend3 = new Message(Message.Type.DELETE_LIST, idHashed);
+                    messageToSend3.sendMessage(server2);
+
+                    break;
+                case LIST_DELETED:
+                    var obj7 = message.getContent();
+
+                    idHashed = (Long) obj7;
+
+                    // get client channel from hashmap
+                    SocketChannel originalClientChannel2 = clientChannels.get(idHashed);
+
+                    // send list to client
+                    Message messageToSend4 = new Message(Message.Type.LIST_DELETED, idHashed);
+                    boolean sent = messageToSend4.sendMessage(originalClientChannel2);
+                    System.out.println("Message sent to client: " + originalClientChannel2);
+
                     break;
                 default:
                     break;
