@@ -4,6 +4,8 @@ compile:
 	@javac crdts/*.java
 	@javac utils/*.java
 	@javac backend/*.java
+	@javac backend/server1/*.java
+	@javac backend/server2/*.java
 	@javac shopping/*.java
 	@javac client/client1/*.java
 	@javac client/client2/*.java
