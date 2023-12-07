@@ -24,16 +24,15 @@ public class ServerManager {
 
     private final Set<Long> listIds = new HashSet<Long>();
 
-    private HashMap<Long, SocketChannel> clientChannels = new HashMap<Long, SocketChannel>();
+    private HashMap<Integer, SocketChannel> clientChannels = new HashMap<Integer, SocketChannel>();
 
     private final ExecutorService serverConnectionPool = Executors.newFixedThreadPool(5);
 
     private Selector selector;
-
     private String ipAddress;
     private int portNumber;
-
     private String token;
+    private int requestCount = 0;
 
     public ServerManager() throws IOException {
         serverTable = new TreeMap<Long, String>();
@@ -86,8 +85,8 @@ public class ServerManager {
         broadcastMessage(message);
     }
 
-    public void removeServer(Server server) {
-        long ipAddressHash = MurmurHash.hash_x86_32(server.getIpAddress().getBytes(), server.getIpAddress().getBytes().length, 0);
+    public void removeServer(String ipAddress) {
+        long ipAddressHash = MurmurHash.hash_x86_32(ipAddress.getBytes(), ipAddress.getBytes().length, 0);
         serverTable.remove(ipAddressHash);
         Message message = new Message(Message.Type.UPDATE_TABLE, this.serverTable);
         broadcastMessage(message);
@@ -151,12 +150,30 @@ public class ServerManager {
     }
 
     private void read(SelectionKey key) throws IOException, ClassNotFoundException {
+
+        // check if channel is open
+        if(!key.channel().isOpen()) {
+            System.out.println("Channel is closed");
+            return;
+        }
+
         SocketChannel channel = (SocketChannel) key.channel();
 
-        Message message = Message.readMessage(channel);
-        System.out.println("Received message with type: " + message.getType() + " and content: " + message.getContent());
+        try {
+            Message message = Message.readMessage(channel);
+            System.out.println("Received message with type: " + message.getType() + " and content: " + message.getContent());
+            dealWithMessage(message, channel);
+            // Process the message
+        } catch (EOFException e) {
+            System.out.println("Client has closed the connection.");
+            // Perform any necessary cleanup
+            channel.close();
+        } catch (IOException | ClassNotFoundException e) {
+            System.out.println("Error reading from client.");
+            // Perform any necessary cleanup
+            channel.close();
+        }
 
-        dealWithMessage(message, channel);
     }
 
     private String getServerWithId(long idHashed) {
@@ -190,33 +207,45 @@ public class ServerManager {
                     }
                     break;
                 case GET_LIST:
+
+                    requestCount++;
                     var obj2 = message.getContent();
                     if(obj2.getClass() == Long.class) {
                         Long idHashed = (Long) obj2;
 
+                        clientChannels.put(requestCount, clientChannel);
+
                         String serverIp = getServerWithId(idHashed);
                         SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
                         Message messageToSend = new Message(Message.Type.GET_LIST, idHashed);
+                        messageToSend.setId(requestCount);
                         messageToSend.sendMessage(server);
                     }
 
                     break;
                 case SEND_LIST:
                     var obj3 = message.getContent();
-                    if(obj3.getClass() == Long.class) {
-                        Long idHashed = (Long) obj3;
+                    if(obj3.getClass() == ArrayList.class) {
+                        ArrayList<Long> list = (ArrayList<Long>) obj3;
+
+                        int requestId = message.getId();
+                        SocketChannel originalClientChannel = clientChannels.get(requestId);
 
                         // send to the client the IP address of the server that holds the list with the given id
-                        Message messageToSend = new Message(Message.Type.SEND_LIST, this.serverTable.get(idHashed));
-                        messageToSend.sendMessage(clientChannel);
-                        System.out.println("Sending message to client: " + this.serverTable.get(idHashed) + " with id: " + idHashed);
+                        Message messageToSend = new Message(Message.Type.SEND_LIST, list);
+                        messageToSend.sendMessage(originalClientChannel);
+
+                        clientChannels.remove(requestId);
+
                     }
                     break;
                 case CREATE_LIST:
 
+                    requestCount++;
+
                     // create random list id
-                    Long longRandom = new Random().nextLong();
-                    Long listId = MurmurHash.hash_x86_32(Long.toString(longRandom).getBytes(),
+                    long longRandom = new Random().nextLong();
+                    long listId = MurmurHash.hash_x86_32(Long.toString(longRandom).getBytes(),
                             Long.toString(longRandom).getBytes().length, 0);
 
                     while(listIds.contains(listId)) {
@@ -228,10 +257,11 @@ public class ServerManager {
                     SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
 
                     // add client channel to hashmap
-                    clientChannels.put(listId, clientChannel);
+                    clientChannels.put(requestCount, clientChannel);
 
                     // send to the server the list id and the client channel
                     Message messageToSend = new Message(Message.Type.CREATE_LIST, listId);
+                    messageToSend.setId(requestCount);
                     messageToSend.sendMessage(server);
 
 
@@ -251,14 +281,20 @@ public class ServerManager {
                         }
 
                         // get client channel from hashmap
-                        SocketChannel originalClientChannel = clientChannels.get(listObj.get(1));
-
+                        int requestId = message.getId();
+                        SocketChannel originalClientChannel = clientChannels.get(requestId);
 
                         // send list to client
                         Message messageToSend2 = new Message(Message.Type.LIST_CREATED, listObj);
+<<<<<<< HEAD
                         boolean sent = messageToSend2.sendMessage(originalClientChannel);
+=======
+                        messageToSend2.sendMessage(originalClientChannel);
+>>>>>>> 1272503ae00d25c4f005ad10d645f4c3ae1aff18
                         System.out.println("Message sent to client: " + originalClientChannel);
 
+                        // remove client channel from hashmap
+                        clientChannels.remove(requestId);
                     }
                     break;
                 case DELETE_LIST:

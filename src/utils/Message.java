@@ -19,6 +19,7 @@ public class Message implements Serializable {
         SEND_LIST,
         CREATE_LIST,
         LIST_CREATED,
+
         DELETE_LIST,
 
         LIST_DELETED,
@@ -28,6 +29,8 @@ public class Message implements Serializable {
     private final Type type;
     private final Object content;
 
+    private Integer id;
+
     public Message( Type type, Object content) {
         this.type = type ;
         this.content = content;
@@ -35,6 +38,12 @@ public class Message implements Serializable {
 
     public Type getType() {
         return type;
+    }
+
+    public Integer getId() {return id;}
+
+    public void setId(Integer id) {
+        this.id = id;
     }
 
     public Object getContent() {

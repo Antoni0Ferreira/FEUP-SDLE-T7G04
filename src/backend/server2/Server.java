@@ -1,5 +1,6 @@
-package backend;
+package backend.server2;
 
+import utils.Database;
 import utils.Message;
 import utils.MurmurHash;
 import utils.Pair;
@@ -186,8 +187,27 @@ public class Server {
 
                         Long idHashed = (Long) obj2;
                         String serverIp = this.serverTable.get(idHashed);
-                        Message messageToSend = new Message(Message.Type.SEND_LIST, serverIp);
-                        messageToSend.sendMessage(channel);
+
+                        // return list from database
+
+                        Object listObj  = Database.readFromFile("backend/server2"
+                                + idHashed.toString() + ".ser");
+
+                        if (listObj == null) {
+                            System.out.println("List not found");
+                            break;
+                        } else if (listObj.getClass() == ArrayList.class) {
+
+                            ArrayList<Long> list = (ArrayList<Long>) listObj;
+                            Message messageToSend = new Message(Message.Type.SEND_LIST, list);
+                            messageToSend.setId(message.getId());
+                            messageToSend.sendMessage(channel);
+
+                        } else {
+                            System.out.println("Error reading list");
+                            break;
+                        }
+
                     }
                     break;
                 case CREATE_LIST:
@@ -209,7 +229,11 @@ public class Server {
 
                         // send list to ServerManager
                         Message messageToSend = new Message(Message.Type.LIST_CREATED, content);
+                        messageToSend.setId(message.getId());
                         messageToSend.sendMessage(serverManager);
+
+                        // store list in database
+                        Database.writeToFile(list, "backend/server2" + listId.toString() + ".ser" );
 
 
                     }

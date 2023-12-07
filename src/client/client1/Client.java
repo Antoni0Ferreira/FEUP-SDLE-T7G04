@@ -70,7 +70,7 @@ public class Client {
         System.out.println("3. Delete list");
         System.out.println("4. Push list");
         System.out.println("5. Pull list");
-        System.out.println("9 Exit");
+        System.out.println("9. Exit");
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(System.in));
         String input = reader.readLine();
@@ -128,14 +128,11 @@ public class Client {
         if(!insideList){
             switch (input.getOption()){
                 case "1":
-
                     Message request1 = new Message(Message.Type.CREATE_LIST, "");
                     request1.sendMessage(serverChannel);
 
                     Message response1 = Message.readMessage(serverChannel);
-
                     if(response1.getType() == Message.Type.LIST_CREATED){
-
                         var list = response1.getContent();
                         System.out.println(list.toString());
                     }
@@ -143,24 +140,36 @@ public class Client {
                         System.out.println("Error creating list");
                     }
 
+                    // check if list is an ArrayList
                     var listObj = response1.getContent();
-
                     if(listObj.getClass() == ArrayList.class){
                         ArrayList<Long> list = (ArrayList<Long>) listObj;
                         System.out.println("List created successfully");
-                        var wrote = Database.writeToFile(list.get(0), filepathPrefix +  list.get(1).toString()+ ".ser" );  //* TODO - Replace with List id: response1.getContent()... *//*
-                        System.out.println("Wrote to file: " + wrote);
+
+                        Database.writeToFile(list.get(0), filepathPrefix +
+                                list.get(1).toString() + ".ser" );  /* TODO - Replace with List id: response1.getContent()... */
                         insideList = true;
                     }
                     else{
                         System.out.println("Error creating list");
                     }
-
-
                     break;
                 case "2":
-                    Message message2 = new Message(Message.Type.GET_LIST, "");
-                    message2.sendMessage(SocketChannel.open(serverManagerSocketAddress));
+
+                    String listId = input.getListId();
+                    Message message2 = new Message(Message.Type.GET_LIST, listId);
+                    message2.sendMessage(serverChannel);
+
+                    Message response2 = Message.readMessage(serverChannel);
+                    if(response2.getType() == Message.Type.SEND_LIST){
+                        var list = response2.getContent();
+                        System.out.println(list.toString());
+                    }
+                    else{
+                        System.out.println("Error getting list");
+                    }
+
+                    break;
 
                 case "3": // Delete list
                     Message message3 = new Message(Message.Type.DELETE_LIST, input.getListId());
@@ -190,6 +199,17 @@ public class Client {
 
                     break;
                 case "9":
+                    // Close connection to the server
+                    System.out.println("Closing connection to the server");
+                    if (serverChannel != null && serverChannel.isOpen()) {
+                        try {
+                            serverChannel.close();
+                        } catch (IOException e) {
+                            System.err.println("Error closing the server channel: " + e.getMessage());
+                        }
+                    }
+
+                    System.out.println("Exiting the application");
                     System.exit(0);
                     break;
                 default:
