@@ -44,17 +44,6 @@ public class Client {
 
     }
 
-    public void sendRandomLong(SocketChannel server) throws IOException {
-        // Generate a random long value
-        long randomLong = new Random().nextLong();
-        long idHashed = MurmurHash.hash_x86_32(Long.toString(randomLong).getBytes(), Long.toString(randomLong).getBytes().length, 0);
-
-        Message message = new Message(Message.Type.GET_LIST, idHashed);
-        message.sendMessage(server);
-
-        System.out.println("Sent long value to server: " + idHashed);
-    }
-
     public InputObj getClientInput() throws IOException, ClassNotFoundException {
 
         if(!insideList){
@@ -130,8 +119,7 @@ public class Client {
                     //TODO - Receive response
                     break;
                 case "2":
-                    Message message2 = new Message(Message.Type.GET_LIST, "");
-                    message2.sendMessage(SocketChannel.open(serverManagerSocketAddress));
+
 
                     // TODO - Receive response
                 case "3":

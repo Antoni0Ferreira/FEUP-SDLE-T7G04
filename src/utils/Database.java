@@ -37,4 +37,9 @@ public class Database {
         }
         return object;
     }
+
+    public static boolean deleteFile(String filepath) {
+        File file = new File(filepath);
+        return file.delete();
+    }
 }

@@ -15,10 +15,15 @@ public class Message implements Serializable {
 
         // Server Manager
         UPDATE_TABLE,
-        GET_LIST,
-        SEND_LIST,
         CREATE_LIST,
         LIST_CREATED,
+        DELETE_LIST,
+        LIST_DELETED,
+        PUSH_LIST,
+        LIST_PUSHED,
+        PULL_LIST,
+        LIST_PULLED,
+        LIST_NOT_FOUND,
     }
 
     private final Type type;
@@ -75,6 +80,10 @@ public class Message implements Serializable {
         }
         lengthBuffer.flip();
         int messageLength = lengthBuffer.getInt();
+
+        if (messageLength < 0) {
+            throw new IOException("Invalid message length");
+        }
 
         ByteBuffer messageBuffer = ByteBuffer.allocate(messageLength);
         while(messageBuffer.hasRemaining()) {

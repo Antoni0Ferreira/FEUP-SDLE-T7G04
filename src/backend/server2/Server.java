@@ -181,35 +181,7 @@ public class Server {
                         this.setServerTable(serverTable);
                     }
                     break;
-                case GET_LIST:
-                    var obj2 = message.getContent();
-                    if(obj2.getClass() == Long.class) {
 
-                        Long idHashed = (Long) obj2;
-                        String serverIp = this.serverTable.get(idHashed);
-
-                        // return list from database
-
-                        Object listObj  = Database.readFromFile("backend/server2"
-                                + idHashed.toString() + ".ser");
-
-                        if (listObj == null) {
-                            System.out.println("List not found");
-                            break;
-                        } else if (listObj.getClass() == ArrayList.class) {
-
-                            ArrayList<Long> list = (ArrayList<Long>) listObj;
-                            Message messageToSend = new Message(Message.Type.SEND_LIST, list);
-                            messageToSend.setId(message.getId());
-                            messageToSend.sendMessage(channel);
-
-                        } else {
-                            System.out.println("Error reading list");
-                            break;
-                        }
-
-                    }
-                    break;
                 case CREATE_LIST:
                     var obj3 = message.getContent();
                     if(obj3.getClass() == Long.class) {
