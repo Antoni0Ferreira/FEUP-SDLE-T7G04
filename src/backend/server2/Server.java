@@ -211,8 +211,25 @@ public class Server {
                     }
 
                     break;
+                case DELETE_LIST:
+                    var obj4 = message.getContent();
+                    System.out.println("OBJ4: " + obj4.getClass());
+                    if(obj4.getClass() == Long.class) {
+                        System.out.println("LONGG");
+                        Long listId = (Long) obj4;
 
+                        // create content list to send
+                        List<Object> content = new ArrayList<Object>();
+                        content.add(listId);
+                        content.add(listId);
+                        System.out.println("Server manager socket address: " + serverManagerSocketAddress);
+                        SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
 
+                        // send list to ServerManager
+                        Message messageToSend = new Message(Message.Type.LIST_DELETED, content);
+                        messageToSend.sendMessage(serverManager);
+                    }
+                    break;
                 default:
                     System.out.println("Unknown message type");
                     break;
