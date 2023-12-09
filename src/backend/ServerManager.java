@@ -92,6 +92,10 @@ public class ServerManager {
         serverTable.put(ipAddressHash, ipAddress);
         Message message = new Message(Message.Type.UPDATE_TABLE, this.serverTable);
         broadcastMessage(message);
+
+        Long ipAddressHashLong = ipAddressHash;
+        Message message = new Message(Message.Type.ADD_SERVER, ipAddressHashLong);
+        broadcastMessage(message);
     }
 
     public void removeServer(String ipAddress) {
@@ -155,7 +159,6 @@ public class ServerManager {
 
         //Register channel with selector for further IO operations - record it for read operations
         channel.register(this.selector, SelectionKey.OP_READ);
-
 
     }
 
