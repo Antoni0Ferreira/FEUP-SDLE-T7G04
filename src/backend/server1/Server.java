@@ -336,7 +336,7 @@ public class Server {
                         }
                     }
                     break;
-                case SYNC:
+/*                case SYNC:
                     var obj7 = message.getContent();
                     if(obj7.getClass() == ShoppingList.class) {
 
@@ -379,7 +379,7 @@ public class Server {
                             break;
                         }
                     }
-                    break;
+                    break;*/
                 default:
                     System.out.println("Unknown message type");
                     break;

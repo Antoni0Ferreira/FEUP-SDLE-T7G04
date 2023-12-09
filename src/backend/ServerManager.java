@@ -363,7 +363,7 @@ public class ServerManager {
 
                     clientChannels.remove(requestId4);
                     break;
-                case SYNC:
+/*                case SYNC:
 
                     requestCount++;
 
@@ -397,7 +397,7 @@ public class ServerManager {
                     break;
                 default:
                     break;
-            }
+            }*/
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

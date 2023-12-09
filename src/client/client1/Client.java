@@ -276,6 +276,7 @@ public class Client {
 
                     break;
 
+/*
                 case "6":
 
                     String listId6 = input.getListId();
@@ -319,6 +320,7 @@ public class Client {
                     }
 
                     break;
+*/
 
                 case "9":
                     // Close connection to the server
