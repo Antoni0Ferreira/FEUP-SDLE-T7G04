@@ -220,7 +220,7 @@ public class ServerManager {
     }
 
     public void initServer() {
-        
+
     }
 
     private void dealWithMessage(Message message, SocketChannel clientChannel) {
