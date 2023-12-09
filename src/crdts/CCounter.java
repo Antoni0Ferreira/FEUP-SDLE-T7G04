@@ -1,10 +1,11 @@
 package crdts;
 
+import java.io.Serializable;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 
-public class CCounter<V extends Comparable<V>, K extends Comparable<K>> implements Comparable<CCounter<V, K>> {
+public class CCounter<V extends Comparable<V>, K extends Comparable<K>> implements Comparable<CCounter<V, K>>, Serializable {
 
     private K id;
     private Joinable<V> joinable = (Joinable<V>) new NumericJoin();

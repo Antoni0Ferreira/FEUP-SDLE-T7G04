@@ -1,10 +1,11 @@
 package crdts;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 
-public class AWORMap<K extends Comparable<K>, V extends Comparable<V>> {
+public class AWORMap<K extends Comparable<K>, V extends Comparable<V>> implements Serializable {
     public Map<K, AWORSet<K, V>> map;
 
     public AWORMap() {

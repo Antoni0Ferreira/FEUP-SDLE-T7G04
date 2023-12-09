@@ -4,42 +4,71 @@ import crdts.AWORMap;
 import crdts.AWORSet;
 import crdts.CCounter;
 
+import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
 
-public class ShoppingList {
+public class ShoppingList implements Serializable {
     private final AWORMap<String, CCounter<Integer, String>> shoppingList;
+    private Long id;
     public ShoppingList() {
         shoppingList = new AWORMap<>();
+    }
+
+    public ShoppingList(Long id) {
+        shoppingList = new AWORMap<>();
+        this.id = id;
+    }
+    public Long getId() {
+        return id;
+    }
+
+    public void setId(Long id) {
+        this.id = id;
+    }
+
+    public AWORMap<String, CCounter<Integer, String>> getShoppingList() {
+        return shoppingList;
     }
 
     public void addItem(String item, int quantity) {
         Set<CCounter<Integer, String>> counter = shoppingList.get(item);
 
-        CCounter<Integer,String> firstCounter = counter.iterator().next();
-
-        if(firstCounter != null) {
-            firstCounter.increment(quantity);
-            shoppingList.put(item, firstCounter);
+        CCounter<Integer, String> firstCounter;
+        if(counter != null) {
+            firstCounter = counter.iterator().next();
         } else {
-            shoppingList.put(item, firstCounter);
+            firstCounter = new CCounter<>(item);
         }
+
+        if(firstCounter.readValue() + quantity < 0) {
+            firstCounter.decrement(firstCounter.readValue());
+        } else {
+            firstCounter.increment(quantity);
+        }
+
+        shoppingList.put(item, firstCounter);
     }
 
     public void removeItem(String item, int quantity) {
         Set<CCounter<Integer,String>> counter = shoppingList.get(item);
 
         // get the first counter
-        CCounter<Integer,String> firstCounter = counter.iterator().next();
-
-        if (firstCounter != null) {
-            firstCounter.decrement(quantity);
-            if (firstCounter.readValue() <= 0) {
-                shoppingList.remove(item, firstCounter);
-            } else {
-                shoppingList.put(item, firstCounter);
-            }
+        CCounter<Integer,String> firstCounter;
+        if(counter != null) {
+            firstCounter = counter.iterator().next();
+        } else {
+            firstCounter = new CCounter<>();
         }
+
+        // if the quantity to remove is greater than the quantity in the counter, remove the counter entirely
+        if(firstCounter.readValue() - quantity < 0) {
+            firstCounter.decrement(firstCounter.readValue());
+        } else {
+            firstCounter.decrement(quantity);
+        }
+
+        shoppingList.put(item, firstCounter);
     }
 
     public void displayShoppingList() {

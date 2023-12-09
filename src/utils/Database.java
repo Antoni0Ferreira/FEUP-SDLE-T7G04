@@ -22,6 +22,7 @@ public class Database {
     }
 
     public static Object readFromFile(String filepath) throws IOException, ClassNotFoundException {
+
         ObjectInputStream objectinputstream = null;
         Object object = null;
         try {
@@ -29,7 +30,7 @@ public class Database {
             objectinputstream = new ObjectInputStream(streamIn);
             object = objectinputstream.readObject();
         } catch (Exception e) {
-            e.printStackTrace();
+            System.out.println("Error reading from file");
         } finally {
             if(objectinputstream != null){
                 objectinputstream.close();

@@ -2,6 +2,7 @@ package backend.server1;
 
 
 
+import shopping.ShoppingList;
 import utils.Database;
 import utils.Message;
 import utils.MurmurHash;
@@ -196,12 +197,13 @@ public class Server {
 
                         Long listId = (Long) obj3;
 
-                        // create a new list
-                        List<Long> list = new ArrayList<Long>();
+                        // create new shopping list
+                        ShoppingList shoppingList = new ShoppingList();
+                        shoppingList.setId(listId);
 
                         // create content list to send
                         List<Object> content = new ArrayList<Object>();
-                        content.add(list);
+                        content.add(shoppingList);
                         content.add(listId);
                         System.out.println("Server manager socket address: " + serverManagerSocketAddress);
                         SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
@@ -212,7 +214,7 @@ public class Server {
                         messageToSend.sendMessage(serverManager);
 
                         // store list in database
-                        Database.writeToFile(list, "backend/server1/" + listId.toString() + ".ser" );
+                        Database.writeToFile(shoppingList, "backend/server1/" + listId.toString() + ".ser" );
 
                     }
 
@@ -253,10 +255,10 @@ public class Server {
                     break;
                 case PUSH_LIST:
                     var obj5 = message.getContent();
-                    if(obj5.getClass() == ArrayList.class) {
+                    if(obj5.getClass() == ShoppingList.class) {
 
-                        ArrayList<Long> list = (ArrayList<Long>) obj5;
-                        Long listId = list.get(0);
+                        ShoppingList list = (ShoppingList) obj5;
+                        Long listId = list.getId();
 
                         // check if file exists
                         File file = new File("backend/server1/" + listId.toString() + ".ser");
@@ -265,19 +267,34 @@ public class Server {
                             break;
                         }
 
-                        // delete list from database if exists else create
-                        Database.deleteFile("backend/server1/" + listId.toString() + ".ser" );
+                        // read list from database
+                        Object listObj  = Database.readFromFile("backend/server1/"
+                                + listId.toString() + ".ser");
 
-                        // store list in database
-                        Database.writeToFile(list, "backend/server1/" + listId.toString() + ".ser" );
+                        if (listObj.getClass() == ShoppingList.class) {
+                            ShoppingList shoppingList = (ShoppingList) listObj;
 
-                        System.out.println("Server manager socket address: " + serverManagerSocketAddress);
-                        SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
+                            // merge lists
+                            shoppingList.mergeShoppingList(list.getShoppingList());
 
-                        // send list to ServerManager
-                        Message messageToSend = new Message(Message.Type.LIST_PUSHED, null);
-                        messageToSend.setId(message.getId());
-                        messageToSend.sendMessage(serverManager);
+                            // delete list from database if exists else create
+                            Database.deleteFile("backend/server1/" + listId.toString() + ".ser" );
+
+                            // store list in database
+                            Database.writeToFile(shoppingList, "backend/server1/" + listId.toString() + ".ser" );
+
+                            System.out.println("Server manager socket address: " + serverManagerSocketAddress);
+                            SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
+
+                            // send list to ServerManager
+                            Message messageToSend = new Message(Message.Type.LIST_PUSHED, null);
+                            messageToSend.setId(message.getId());
+                            messageToSend.sendMessage(serverManager);
+
+                        } else {
+                            System.out.println("Error reading list");
+                            break;
+                        }
                     }
 
                     break;
@@ -303,15 +320,59 @@ public class Server {
                         Object listObj  = Database.readFromFile("backend/server1/"
                                 + listId.toString() + ".ser");
 
-                        if (listObj.getClass() == ArrayList.class) {
+                        if (listObj.getClass() == ShoppingList.class) {
 
                             SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
+                            ShoppingList list = (ShoppingList) listObj;
 
-                            ArrayList<Long> list = (ArrayList<Long>) listObj;
                             Message messageToSend = new Message(Message.Type.LIST_PULLED, list);
                             messageToSend.setId(message.getId());
                             messageToSend.sendMessage(serverManager);
                             System.out.println("Sent list to client: " + list);
+
+                        } else {
+                            System.out.println("Error reading list");
+                            break;
+                        }
+                    }
+                    break;
+                case SYNC:
+                    var obj7 = message.getContent();
+                    if(obj7.getClass() == ShoppingList.class) {
+
+                        ShoppingList list = (ShoppingList) obj7;
+                        Long listId = list.getId();
+
+                        // check if file exists
+                        File file = new File("backend/server1/" + listId.toString() + ".ser");
+                        if(!file.exists()) {
+                            Database.writeToFile(list, "backend/server1/" + listId.toString() + ".ser" );
+                            break;
+                        }
+
+                        // read list from database
+                        Object listObj  = Database.readFromFile("backend/server1/"
+                                + listId.toString() + ".ser");
+
+                        if (listObj.getClass() == ShoppingList.class) {
+                            ShoppingList shoppingList = (ShoppingList) listObj;
+
+                            // merge lists
+                            shoppingList.mergeShoppingList(list.getShoppingList());
+
+                            // delete list from database if exists else create
+                            Database.deleteFile("backend/server1/" + listId.toString() + ".ser" );
+
+                            // store list in database
+                            Database.writeToFile(shoppingList, "backend/server1/" + listId.toString() + ".ser" );
+
+                            System.out.println("Server manager socket address: " + serverManagerSocketAddress);
+                            SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
+
+                            // send list to ServerManager
+                            Message messageToSend = new Message(Message.Type.SYNC_OK, shoppingList);
+                            messageToSend.setId(message.getId());
+                            messageToSend.sendMessage(serverManager);
 
                         } else {
                             System.out.println("Error reading list");

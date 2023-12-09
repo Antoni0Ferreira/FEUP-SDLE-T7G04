@@ -1,13 +1,14 @@
 package client.client1;
 
+import shopping.ShoppingList;
 import utils.Message;
-import utils.MurmurHash;
 import utils.Database;
 
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
+import java.sql.SQLOutput;
 import java.util.ArrayList;
 import java.util.Random;
 import java.util.Scanner;
@@ -22,7 +23,7 @@ public class Client {
     private Scanner scanner;
 
     private boolean insideList = false;
-    private ArrayList<Long> currentList = new ArrayList<>();
+    private ShoppingList currentList;
     private Long currentListId;
 
     public Client(String serverManagerIp, int serverPort) {
@@ -73,7 +74,7 @@ public class Client {
 
         InputObj inputObj = new InputObj(input);
 
-        if(input.equals("2") || input.equals("3") || input.equals("4") || input.equals("5")){
+        if(input.equals("2") || input.equals("3") || input.equals("4") || input.equals("5") || input.equals("6")){
             System.out.println("Input list id: ");
             input = scanner.nextLine();
             inputObj.setListId(input);
@@ -83,7 +84,8 @@ public class Client {
     }
 
     private InputObj getInsideListInput() throws IOException{
-        System.out.println("Current list: " + currentList.toString());
+        System.out.println("Current list: ");
+        currentList.displayShoppingList();
         System.out.println("Select an option: ");
         System.out.println("1. Add or update item");
         System.out.println("2. Remove item");
@@ -94,16 +96,15 @@ public class Client {
 
         switch (input){
             case "1":
-/*                System.out.println("Input item name: ");
-                input = reader.readLine();
+                System.out.println("Input item name: ");
+                input = scanner.nextLine();
                 inputObj.setItemName(input);
 
                 System.out.println("Input item quantity: ");
-                input = reader.readLine();
-                inputObj.setQuantity(Integer.parseInt(input));*/
-                System.out.println("\nInput new number: ");
                 input = scanner.nextLine();
-                currentList.add(Long.parseLong(input));
+                inputObj.setQuantity(Integer.parseInt(input));
+
+                currentList.addItem(inputObj.getItemName(), inputObj.getQuantity());
 
                 // delete database file regarding the current list and create a new one with the updated list
                 Database.deleteFile(filepathPrefix + currentListId.toString() + ".ser");
@@ -111,13 +112,16 @@ public class Client {
 
                 break;
             case "2":
-/*                System.out.println("Input item name: ");
-                input = reader.readLine();
-                inputObj.setItemName(input);
-                inputObj.setQuantity(0);*/
-                System.out.println("\nInput number to remove: ");
+                System.out.println("Input item name: ");
                 input = scanner.nextLine();
-                currentList.remove(Long.parseLong(input));
+                inputObj.setItemName(input);
+
+                System.out.println("Input item quantity: ");
+                input = scanner.nextLine();
+                inputObj.setQuantity(Integer.parseInt(input));
+
+                currentList.removeItem(inputObj.getItemName(), inputObj.getQuantity());
+
 
                 // delete database file regarding the current list and create a new one with the updated list
                 Database.deleteFile(filepathPrefix + currentListId.toString() + ".ser");
@@ -144,26 +148,25 @@ public class Client {
 
                     Message response1 = Message.readMessage(serverChannel);
                     if(response1.getType() == Message.Type.LIST_CREATED){
-                        var list = response1.getContent();
-                        System.out.println(list.toString());
+                        System.out.println("\nList created successfully");
                     }
                     else{
                         System.out.println("\nError creating list");
+                        break;
                     }
 
                     // check if list is an ArrayList
                     var listObj = response1.getContent();
                     if(listObj.getClass() == ArrayList.class){
                         ArrayList<Object> list = (ArrayList<Object>) listObj;
-                        ArrayList<Long> createdList = (ArrayList<Long>) list.get(0);
+                        ShoppingList createdList = (ShoppingList) list.get(0);
                         Long listId = (Long) list.get(1);
-
-                        System.out.println("\nList created successfully");
 
                         Database.writeToFile(createdList, filepathPrefix +
                                 listId.toString() + ".ser" );
                         currentList = createdList;
                         currentListId = listId;
+                        insideList = true;
                     }
                     else{
                         System.out.println("\nError creating list");
@@ -174,34 +177,42 @@ public class Client {
 
                     String listId = input.getListId();
 
-                    // get list from database
-                    try {
-                        currentList = (ArrayList<Long>) Database.readFromFile(filepathPrefix + listId + ".ser");
-                        currentListId = Long.parseLong(listId);
-
-                    } catch (IOException | ClassNotFoundException e) {
-                        System.out.println("\nList not found");
+                    File file = new File(filepathPrefix + listId + ".ser");
+                    if(!file.exists()){
+                        System.out.println("\nList not found locally");
                         break;
                     }
 
-                    insideList = true;
+                    currentList = (ShoppingList) Database.readFromFile(filepathPrefix + listId + ".ser");
+                    currentListId = Long.parseLong(listId);
 
+                    insideList = true;
                     break;
 
                 case "3":
 
                     String listId3 = input.getListId();
+
+                    File file2 = new File(filepathPrefix + listId3 + ".ser");
+                    if(!file2.exists()){
+                        System.out.println("\nList not found locally");
+                        break;
+                    }
+
+                    // delete database file regarding the current list and create a new one with the updated list
+                    Database.deleteFile(filepathPrefix + listId3 + ".ser");
+                    System.out.println("\nList deleted locally");
+
+
                     Message message3 = new Message(Message.Type.DELETE_LIST, listId3);
                     message3.sendMessage(serverChannel);
 
                     Message response3 = Message.readMessage(serverChannel);
                     if(response3.getType() == Message.Type.LIST_DELETED){
+                        System.out.println("\nList deleted remotely");
 
-                        // delete database file regarding the current list and create a new one with the updated list
-                        Database.deleteFile(filepathPrefix + listId3 + ".ser");
-                        System.out.println("\nList deleted successfully");
                     } else if(response3.getType() == Message.Type.LIST_NOT_FOUND) {
-                        System.out.println("\nList not found");
+                        System.out.println("\nList not found remotely");
                     } else {
                         System.out.println("\nError deleting list");
                     }
@@ -211,19 +222,16 @@ public class Client {
                 case "4":
 
                     String listId4 = input.getListId();
-                    // get list from database
-                    try {
-                        currentList = (ArrayList<Long>) Database.readFromFile(filepathPrefix + listId4 + ".ser");
 
-                    } catch (IOException | ClassNotFoundException e) {
-                        System.out.println("\nList not found");
+                    // check if list exists locally
+                    File file3 = new File(filepathPrefix + listId4 + ".ser");
+                    if(!file3.exists()){
+                        System.out.println("\nList not found locally");
                         break;
                     }
 
-                    ArrayList<Object> content = new ArrayList<>();
-                    content.add(currentList);
-                    content.add(listId4);
-                    Message message4 = new Message(Message.Type.PUSH_LIST, content);
+                    currentList = (ShoppingList) Database.readFromFile(filepathPrefix + listId4 + ".ser");
+                    Message message4 = new Message(Message.Type.PUSH_LIST, currentList);
                     message4.sendMessage(serverChannel);
 
                     Message response4 = Message.readMessage(serverChannel);
@@ -236,23 +244,81 @@ public class Client {
                     break;
                 case "5":
 
-                        String listId5 = input.getListId();
-                        Message message5 = new Message(Message.Type.PULL_LIST, listId5);
-                        message5.sendMessage(serverChannel);
+                    String listId5 = input.getListId();
+                    Message message5 = new Message(Message.Type.PULL_LIST, listId5);
+                    message5.sendMessage(serverChannel);
 
-                        Message response5 = Message.readMessage(serverChannel);
-                        if(response5.getType() == Message.Type.LIST_PULLED){
-                            currentList = (ArrayList<Long>) response5.getContent();
-                            currentListId = Long.parseLong(listId5);
-                            insideList = true;
+                    Message response5 = Message.readMessage(serverChannel);
+                    if(response5.getType() == Message.Type.LIST_PULLED){
+                        currentList = (ShoppingList) response5.getContent();
+                        currentListId = currentList.getId();
+                        insideList = true;
 
-                        } else if (response5.getType() == Message.Type.LIST_NOT_FOUND) {
-                            System.out.println("\nList not found");
-                        } else {
-                            System.out.println("\nError pulling list");
+                        // check if list exists locally
+                        File file4 = new File(filepathPrefix + listId5 + ".ser");
+                        if(!file4.exists()){
+                            Database.writeToFile(currentList, filepathPrefix + listId5 + ".ser");
+                            System.out.println("\nList pulled successfully");
+                        }
+                        else{
+                            ShoppingList localList = (ShoppingList) Database.readFromFile(filepathPrefix + listId5 + ".ser");
+                            localList.mergeShoppingList(currentList.getShoppingList());
+                            Database.deleteFile(filepathPrefix + listId5 + ".ser");
+                            Database.writeToFile(localList, filepathPrefix + listId5 + ".ser");
+                            System.out.println("\nList pulled successfully");
                         }
 
+                    } else if (response5.getType() == Message.Type.LIST_NOT_FOUND) {
+                        System.out.println("\nList not found");
+                    } else {
+                        System.out.println("\nError pulling list");
+                    }
+
+                    break;
+
+                case "6":
+
+                    String listId6 = input.getListId();
+
+                    // check if list exists locally
+                    File file4 = new File(filepathPrefix + listId6 + ".ser");
+                    if(!file4.exists()){
+                        System.out.println("\nList not found locally");
                         break;
+                    }
+
+                    currentList = (ShoppingList) Database.readFromFile(filepathPrefix + listId6 + ".ser");
+
+                    Message message6 = new Message(Message.Type.SYNC, currentList);
+                    message6.sendMessage(serverChannel);
+
+                    Message response6 = Message.readMessage(serverChannel);
+                    if(response6.getType() == Message.Type.SYNC_OK){
+                        currentList = (ShoppingList) response6.getContent();
+                        currentListId = currentList.getId();
+                        insideList = true;
+
+                        // check if list exists locally
+                        File file5 = new File(filepathPrefix + listId6 + ".ser");
+                        if(!file4.exists()){
+                            Database.writeToFile(currentList, filepathPrefix + listId6 + ".ser");
+                            System.out.println("\nList pulled successfully");
+                        }
+                        else{
+                            ShoppingList localList = (ShoppingList) Database.readFromFile(filepathPrefix + listId6 + ".ser");
+                            localList.mergeShoppingList(currentList.getShoppingList());
+                            Database.deleteFile(filepathPrefix + listId6 + ".ser");
+                            Database.writeToFile(localList, filepathPrefix + listId6 + ".ser");
+                            System.out.println("\nList pulled successfully");
+                        }
+
+
+                    }
+                    else{
+                        System.out.println("\nError syncing list");
+                    }
+
+                    break;
 
                 case "9":
                     // Close connection to the server
@@ -287,7 +353,19 @@ public class Client {
         // Example usage
         Client client = new Client("127.0.0.1", 8000);
         client.startClient();
-        //client.sendRandomLong(SocketChannel.open(client.serverManagerSocketAddress));
+
+/*        ShoppingList shoppingList = new ShoppingList();
+        shoppingList.addItem("Apple", 6);
+
+        shoppingList.displayShoppingList();
+
+        ShoppingList shoppingList2 = new ShoppingList();
+        shoppingList2.addItem("Apple", 1);
+
+        shoppingList.mergeShoppingList(shoppingList2.getShoppingList());
+        shoppingList.displayShoppingList();
+        shoppingList2.displayShoppingList();*/
+
     }
 
     public class InputObj{

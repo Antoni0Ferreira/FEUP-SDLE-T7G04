@@ -1,11 +1,12 @@
 package crdts;
 
+import java.io.Serializable;
 import java.util.Map;
 import java.util.Set;
 import java.util.HashSet;
 import java.util.Iterator;
 
-public class AWORSet<K extends Comparable<K>, E extends Comparable<E>> {
+public class AWORSet<K extends Comparable<K>, E extends Comparable<E>> implements Serializable {
      // Dot kernel
     private K id;
     private Joinable<E> joinable = (Joinable<E>) new CCounterJoin();

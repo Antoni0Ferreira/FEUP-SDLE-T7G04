@@ -1,5 +1,6 @@
 package crdts;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -7,7 +8,7 @@ import java.util.Set;
 import java.util.Iterator;
 
 
-public class DotContext<K extends Comparable<K>> {
+public class DotContext<K extends Comparable<K>> implements Serializable {
 
     public Map<K, Integer> causalContext;
     public Set<Pair<K, Integer>> dotCloud;

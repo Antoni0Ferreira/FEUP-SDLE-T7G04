@@ -5,6 +5,7 @@ import java.net.InetSocketAddress;
 import java.net.Socket;
 import java.net.SocketAddress;
 import java.net.SocketException;
+import java.net.spi.URLStreamHandlerProvider;
 import java.nio.ByteBuffer;
 import java.nio.channels.SelectionKey;
 import java.nio.channels.Selector;
@@ -13,6 +14,8 @@ import java.nio.channels.SocketChannel;
 import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+
+import shopping.ShoppingList;
 import utils.Message;
 import utils.MurmurHash;
 import utils.Pair;
@@ -243,11 +246,6 @@ public class ServerManager {
 
                         ArrayList<Object> listObj = (ArrayList<Object>) obj4;
 
-                        System.out.println("List content: ");
-                        for (Object obj5 : listObj) {
-                            System.out.println(obj5);
-                        }
-
                         // get client channel from hashmap
                         int requestId = message.getId();
                         SocketChannel originalClientChannel = clientChannels.get(requestId);
@@ -297,17 +295,16 @@ public class ServerManager {
                     requestCount++;
 
                     var obj8 = message.getContent();
-                    if(obj8.getClass() == ArrayList.class) {
-                        ArrayList<Object> list = (ArrayList<Object>) obj8;
-                        long idHashed = Long.parseLong((String) list.get(1));
-                        ArrayList<Long> pushList = (ArrayList<Long>) list.get(0);
+                    if(obj8.getClass() == ShoppingList.class) {
+                        ShoppingList list = (ShoppingList) obj8;
 
                         clientChannels.put(requestCount, clientChannel);
                         System.out.println("putting client channel in hashmap: " + clientChannel);
 
-                        String serverIp3 = getServerWithId(idHashed);
+                        String serverIp3 = getServerWithId(list.getId());
                         SocketChannel server3 = SocketChannel.open(new InetSocketAddress(serverIp3, 8000));
-                        Message messageToSend5 = new Message(Message.Type.PUSH_LIST, pushList);
+                        Message messageToSend5 = new Message(Message.Type.PUSH_LIST, list);
+
                         System.out.println("Sending message to server: " + serverIp3);
                         messageToSend5.setId(requestCount);
                         messageToSend5.sendMessage(server3);
@@ -365,6 +362,38 @@ public class ServerManager {
                     messageToSend9.sendMessage(originalClientChannel4);
 
                     clientChannels.remove(requestId4);
+                    break;
+                case SYNC:
+
+                    requestCount++;
+
+                    var obj12 = message.getContent();
+                    if(obj12.getClass() == ShoppingList.class) {
+                        ShoppingList list = (ShoppingList) obj12;
+
+                        clientChannels.put(requestCount, clientChannel);
+                        System.out.println("putting client channel in hashmap: " + clientChannel);
+
+                        String serverIp5 = getServerWithId(list.getId());
+                        SocketChannel server5 = SocketChannel.open(new InetSocketAddress(serverIp5, 8000));
+                        Message messageToSend10 = new Message(Message.Type.SYNC, list);
+
+                        System.out.println("Sending message to server: " + serverIp5);
+                        messageToSend10.setId(requestCount);
+                        messageToSend10.sendMessage(server5);
+                    }
+                    break;
+                case SYNC_OK:
+
+                    var obj13 = message.getContent();
+                    int requestId5 = message.getId();
+                    SocketChannel originalClientChannel5 = clientChannels.get(requestId5);
+
+                    // send to the client the IP address of the server that holds the list with the given id
+                    Message messageToSend11 = new Message(Message.Type.SYNC_OK, obj13);
+                    messageToSend11.sendMessage(originalClientChannel5);
+
+                    clientChannels.remove(requestId5);
                     break;
                 default:
                     break;

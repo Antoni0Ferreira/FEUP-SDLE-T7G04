@@ -24,6 +24,8 @@ public class Message implements Serializable {
         PULL_LIST,
         LIST_PULLED,
         LIST_NOT_FOUND,
+        SYNC,
+        SYNC_OK,
     }
 
     private final Type type;

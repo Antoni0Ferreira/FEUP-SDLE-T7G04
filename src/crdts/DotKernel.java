@@ -1,11 +1,12 @@
 package crdts;
 
+import java.io.Serializable;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
 import java.util.Objects;
 
-public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> {
+public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> implements Serializable {
     Map<Pair<K, Integer>, T> dotMap;
     DotContext<K> cbase;
     DotContext<K> c;
