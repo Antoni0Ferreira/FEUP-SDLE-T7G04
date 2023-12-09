@@ -32,17 +32,25 @@ public class Server {
 
     private String token;
 
+    private int redundancyDegree;
+
     public Server(String ipAddress, int portNumber) throws IOException {
         this.ipAddress = ipAddress;
         this.portNumber = portNumber;
         this.serverTable = new TreeMap<Long, String>();
         this.serverManagerSocketAddress = new InetSocketAddress("127.0.0.1", 8000);
 
+        this.redundancyDegree = 2;
+
         this.findToken("backend/serverToken.txt");
         System.out.println("Server token: " + this.token);
 
         this.idHashed = MurmurHash.hash_x86_32(this.ipAddress.getBytes(), this.ipAddress.getBytes().length, 0);
 
+    }
+
+    public void setRedundancyDegree(int redundancyDegree) {
+        this.redundancyDegree = redundancyDegree;
     }
 
     // copy constructor
@@ -188,6 +196,19 @@ public class Server {
                     if(obj.getClass() == TreeMap.class) {
                         SortedMap<Long, String> serverTable = (SortedMap<Long, String>) obj;
                         this.setServerTable(serverTable);
+                    }
+                    break;
+                
+                case ADD_SERVER:
+                    var obj2 = message.getContent();
+                    if(obj2.getClass() == Long.class){
+                        // check in server table if server needs to send lists to new server
+                        // calculate new server range
+                        Iterator<Long> iterator = this.serverTable.keySet().iterator();
+                        int i = 0;
+                        while(i < this.redundancyDegree){
+                            
+                        }
                     }
                     break;
 
