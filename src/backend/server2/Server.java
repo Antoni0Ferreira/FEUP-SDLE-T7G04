@@ -1,5 +1,8 @@
 package backend.server2;
 
+
+
+import shopping.ShoppingList;
 import utils.Database;
 import utils.Message;
 import utils.MurmurHash;
@@ -163,6 +166,12 @@ public class Server {
 
     private void read(SelectionKey key) throws IOException, ClassNotFoundException {
         SocketChannel channel = (SocketChannel) key.channel();
+
+        if (!channel.isOpen()) {
+            System.out.println("Channel is closed");
+            return;
+        }
+
         Message message = Message.readMessage(channel);
 
         System.out.println("Received message with type: " + message.getType() + " and content: " + message.getContent());
@@ -188,13 +197,13 @@ public class Server {
 
                         Long listId = (Long) obj3;
 
-                        // create a new list
-                        List<Long> list = new ArrayList<Long>();
-                        list.add(listId);
+                        // create new shopping list
+                        ShoppingList shoppingList = new ShoppingList();
+                        shoppingList.setId(listId);
 
                         // create content list to send
                         List<Object> content = new ArrayList<Object>();
-                        content.add(list);
+                        content.add(shoppingList);
                         content.add(listId);
                         System.out.println("Server manager socket address: " + serverManagerSocketAddress);
                         SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
@@ -205,31 +214,172 @@ public class Server {
                         messageToSend.sendMessage(serverManager);
 
                         // store list in database
-                        Database.writeToFile(list, "backend/server2" + listId.toString() + ".ser" );
-
+                        Database.writeToFile(shoppingList, "backend/server2/" + listId.toString() + ".ser" );
 
                     }
 
                     break;
                 case DELETE_LIST:
                     var obj4 = message.getContent();
-                    System.out.println("OBJ4: " + obj4.getClass());
                     if(obj4.getClass() == Long.class) {
-                        System.out.println("LONGG");
+
                         Long listId = (Long) obj4;
 
-                        // create content list to send
-                        List<Object> content = new ArrayList<Object>();
-                        content.add(listId);
-                        content.add(listId);
+                        // check if file exists
+                        File file = new File("backend/server2/" + listId.toString() + ".ser");
+
+                        if(!file.exists()) {
+                            System.out.println("List not found");
+
+                            SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
+
+                            Message messageToSend = new Message(Message.Type.LIST_NOT_FOUND, null);
+                            messageToSend.setId(message.getId());
+                            messageToSend.sendMessage(serverManager);
+                            break;
+                        }
+
+                        // delete list from database
+                        Database.deleteFile("backend/server2/" + listId.toString() + ".ser" );
+
                         System.out.println("Server manager socket address: " + serverManagerSocketAddress);
                         SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
 
                         // send list to ServerManager
-                        Message messageToSend = new Message(Message.Type.LIST_DELETED, content);
+                        Message messageToSend = new Message(Message.Type.LIST_DELETED, null);
+                        messageToSend.setId(message.getId());
                         messageToSend.sendMessage(serverManager);
+
+                    }
+
+                    break;
+                case PUSH_LIST:
+                    var obj5 = message.getContent();
+                    if(obj5.getClass() == ShoppingList.class) {
+
+                        ShoppingList list = (ShoppingList) obj5;
+                        Long listId = list.getId();
+
+                        // check if file exists
+                        File file = new File("backend/server2/" + listId.toString() + ".ser");
+                        if(!file.exists()) {
+                            Database.writeToFile(list, "backend/server2/" + listId.toString() + ".ser" );
+                            break;
+                        }
+
+                        // read list from database
+                        Object listObj  = Database.readFromFile("backend/server2/"
+                                + listId.toString() + ".ser");
+
+                        if (listObj.getClass() == ShoppingList.class) {
+                            ShoppingList shoppingList = (ShoppingList) listObj;
+
+                            // merge lists
+                            shoppingList.mergeShoppingList(list.getShoppingList());
+
+                            // delete list from database if exists else create
+                            Database.deleteFile("backend/server2/" + listId.toString() + ".ser" );
+
+                            // store list in database
+                            Database.writeToFile(shoppingList, "backend/server2/" + listId.toString() + ".ser" );
+
+                            System.out.println("Server manager socket address: " + serverManagerSocketAddress);
+                            SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
+
+                            // send list to ServerManager
+                            Message messageToSend = new Message(Message.Type.LIST_PUSHED, null);
+                            messageToSend.setId(message.getId());
+                            messageToSend.sendMessage(serverManager);
+
+                        } else {
+                            System.out.println("Error reading list");
+                            break;
+                        }
+                    }
+
+                    break;
+                case PULL_LIST:
+                    var obj6 = message.getContent();
+                    if(obj6.getClass() == Long.class) {
+
+                        Long listId = (Long) obj6;
+
+                        // check if file exists
+                        File file = new File("backend/server2/" + listId.toString() + ".ser");
+                        if(!file.exists()) {
+                            System.out.println("List not found");
+
+                            SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
+
+                            Message messageToSend = new Message(Message.Type.LIST_NOT_FOUND, null);
+                            messageToSend.setId(message.getId());
+                            messageToSend.sendMessage(serverManager);
+                            break;
+                        }
+
+                        Object listObj  = Database.readFromFile("backend/server2/"
+                                + listId.toString() + ".ser");
+
+                        if (listObj.getClass() == ShoppingList.class) {
+
+                            SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
+                            ShoppingList list = (ShoppingList) listObj;
+
+                            Message messageToSend = new Message(Message.Type.LIST_PULLED, list);
+                            messageToSend.setId(message.getId());
+                            messageToSend.sendMessage(serverManager);
+                            System.out.println("Sent list to client: " + list);
+
+                        } else {
+                            System.out.println("Error reading list");
+                            break;
+                        }
                     }
                     break;
+/*                case SYNC:
+                    var obj7 = message.getContent();
+                    if(obj7.getClass() == ShoppingList.class) {
+
+                        ShoppingList list = (ShoppingList) obj7;
+                        Long listId = list.getId();
+
+                        // check if file exists
+                        File file = new File("backend/server2/" + listId.toString() + ".ser");
+                        if(!file.exists()) {
+                            Database.writeToFile(list, "backend/server2/" + listId.toString() + ".ser" );
+                            break;
+                        }
+
+                        // read list from database
+                        Object listObj  = Database.readFromFile("backend/server2/"
+                                + listId.toString() + ".ser");
+
+                        if (listObj.getClass() == ShoppingList.class) {
+                            ShoppingList shoppingList = (ShoppingList) listObj;
+
+                            // merge lists
+                            shoppingList.mergeShoppingList(list.getShoppingList());
+
+                            // delete list from database if exists else create
+                            Database.deleteFile("backend/server2/" + listId.toString() + ".ser" );
+
+                            // store list in database
+                            Database.writeToFile(shoppingList, "backend/server2/" + listId.toString() + ".ser" );
+
+                            System.out.println("Server manager socket address: " + serverManagerSocketAddress);
+                            SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
+
+                            // send list to ServerManager
+                            Message messageToSend = new Message(Message.Type.SYNC_OK, shoppingList);
+                            messageToSend.setId(message.getId());
+                            messageToSend.sendMessage(serverManager);
+
+                        } else {
+                            System.out.println("Error reading list");
+                            break;
+                        }
+                    }
+                    break;*/
                 default:
                     System.out.println("Unknown message type");
                     break;

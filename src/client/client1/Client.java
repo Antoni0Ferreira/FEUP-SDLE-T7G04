@@ -144,6 +144,7 @@ public class Client {
             switch (input.getOption()){
                 case "1":
                     Message request1 = new Message(Message.Type.CREATE_LIST, "");
+                    request1.setSender(Message.Sender.CLIENT);
                     request1.sendMessage(serverChannel);
 
                     Message response1 = Message.readMessage(serverChannel);
@@ -205,6 +206,7 @@ public class Client {
 
 
                     Message message3 = new Message(Message.Type.DELETE_LIST, listId3);
+                    message3.setSender(Message.Sender.CLIENT);
                     message3.sendMessage(serverChannel);
 
                     Message response3 = Message.readMessage(serverChannel);
@@ -232,6 +234,7 @@ public class Client {
 
                     currentList = (ShoppingList) Database.readFromFile(filepathPrefix + listId4 + ".ser");
                     Message message4 = new Message(Message.Type.PUSH_LIST, currentList);
+                    message4.setSender(Message.Sender.CLIENT);
                     message4.sendMessage(serverChannel);
 
                     Message response4 = Message.readMessage(serverChannel);
@@ -246,6 +249,7 @@ public class Client {
 
                     String listId5 = input.getListId();
                     Message message5 = new Message(Message.Type.PULL_LIST, listId5);
+                    message5.setSender(Message.Sender.CLIENT);
                     message5.sendMessage(serverChannel);
 
                     Message response5 = Message.readMessage(serverChannel);

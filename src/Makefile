@@ -6,6 +6,8 @@ compile:
 	@javac backend/*.java
 	@javac backend/server1/*.java
 	@javac backend/server2/*.java
+	@javac backend/server3/*.java
+	@javac backend/server4/*.java
 	@javac shopping/*.java
 	@javac client/client1/*.java
 	@javac client/client2/*.java

@@ -1,4 +1,4 @@
-package backend.server1;
+package backend.server4;
 
 
 
@@ -211,11 +211,10 @@ public class Server {
                         // send list to ServerManager
                         Message messageToSend = new Message(Message.Type.LIST_CREATED, content);
                         messageToSend.setId(message.getId());
-                        messageToSend.setSender(Message.Sender.SERVER);
                         messageToSend.sendMessage(serverManager);
 
                         // store list in database
-                        Database.writeToFile(shoppingList, "backend/server1/" + listId.toString() + ".ser" );
+                        Database.writeToFile(shoppingList, "backend/server4/" + listId.toString() + ".ser" );
 
                     }
 
@@ -227,7 +226,7 @@ public class Server {
                         Long listId = (Long) obj4;
 
                         // check if file exists
-                        File file = new File("backend/server1/" + listId.toString() + ".ser");
+                        File file = new File("backend/server4/" + listId.toString() + ".ser");
 
                         if(!file.exists()) {
                             System.out.println("List not found");
@@ -236,13 +235,12 @@ public class Server {
 
                             Message messageToSend = new Message(Message.Type.LIST_NOT_FOUND, null);
                             messageToSend.setId(message.getId());
-                            messageToSend.setSender(Message.Sender.SERVER);
                             messageToSend.sendMessage(serverManager);
                             break;
                         }
 
                         // delete list from database
-                        Database.deleteFile("backend/server1/" + listId.toString() + ".ser" );
+                        Database.deleteFile("backend/server4/" + listId.toString() + ".ser" );
 
                         System.out.println("Server manager socket address: " + serverManagerSocketAddress);
                         SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
@@ -250,7 +248,6 @@ public class Server {
                         // send list to ServerManager
                         Message messageToSend = new Message(Message.Type.LIST_DELETED, null);
                         messageToSend.setId(message.getId());
-                        messageToSend.setSender(Message.Sender.SERVER);
                         messageToSend.sendMessage(serverManager);
 
                     }
@@ -264,14 +261,14 @@ public class Server {
                         Long listId = list.getId();
 
                         // check if file exists
-                        File file = new File("backend/server1/" + listId.toString() + ".ser");
+                        File file = new File("backend/server4/" + listId.toString() + ".ser");
                         if(!file.exists()) {
-                            Database.writeToFile(list, "backend/server1/" + listId.toString() + ".ser" );
+                            Database.writeToFile(list, "backend/server4/" + listId.toString() + ".ser" );
                             break;
                         }
 
                         // read list from database
-                        Object listObj  = Database.readFromFile("backend/server1/"
+                        Object listObj  = Database.readFromFile("backend/server4/"
                                 + listId.toString() + ".ser");
 
                         if (listObj.getClass() == ShoppingList.class) {
@@ -281,10 +278,10 @@ public class Server {
                             shoppingList.mergeShoppingList(list.getShoppingList());
 
                             // delete list from database if exists else create
-                            Database.deleteFile("backend/server1/" + listId.toString() + ".ser" );
+                            Database.deleteFile("backend/server4/" + listId.toString() + ".ser" );
 
                             // store list in database
-                            Database.writeToFile(shoppingList, "backend/server1/" + listId.toString() + ".ser" );
+                            Database.writeToFile(shoppingList, "backend/server4/" + listId.toString() + ".ser" );
 
                             System.out.println("Server manager socket address: " + serverManagerSocketAddress);
                             SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
@@ -292,7 +289,6 @@ public class Server {
                             // send list to ServerManager
                             Message messageToSend = new Message(Message.Type.LIST_PUSHED, null);
                             messageToSend.setId(message.getId());
-                            messageToSend.setSender(Message.Sender.SERVER);
                             messageToSend.sendMessage(serverManager);
 
                         } else {
@@ -309,7 +305,7 @@ public class Server {
                         Long listId = (Long) obj6;
 
                         // check if file exists
-                        File file = new File("backend/server1/" + listId.toString() + ".ser");
+                        File file = new File("backend/server4/" + listId.toString() + ".ser");
                         if(!file.exists()) {
                             System.out.println("List not found");
 
@@ -321,7 +317,7 @@ public class Server {
                             break;
                         }
 
-                        Object listObj  = Database.readFromFile("backend/server1/"
+                        Object listObj  = Database.readFromFile("backend/server4/"
                                 + listId.toString() + ".ser");
 
                         if (listObj.getClass() == ShoppingList.class) {
@@ -331,7 +327,6 @@ public class Server {
 
                             Message messageToSend = new Message(Message.Type.LIST_PULLED, list);
                             messageToSend.setId(message.getId());
-                            messageToSend.setSender(Message.Sender.SERVER);
                             messageToSend.sendMessage(serverManager);
                             System.out.println("Sent list to client: " + list);
 
@@ -349,14 +344,14 @@ public class Server {
                         Long listId = list.getId();
 
                         // check if file exists
-                        File file = new File("backend/server1/" + listId.toString() + ".ser");
+                        File file = new File("backend/server4/" + listId.toString() + ".ser");
                         if(!file.exists()) {
-                            Database.writeToFile(list, "backend/server1/" + listId.toString() + ".ser" );
+                            Database.writeToFile(list, "backend/server4/" + listId.toString() + ".ser" );
                             break;
                         }
 
                         // read list from database
-                        Object listObj  = Database.readFromFile("backend/server1/"
+                        Object listObj  = Database.readFromFile("backend/server4/"
                                 + listId.toString() + ".ser");
 
                         if (listObj.getClass() == ShoppingList.class) {
@@ -366,10 +361,10 @@ public class Server {
                             shoppingList.mergeShoppingList(list.getShoppingList());
 
                             // delete list from database if exists else create
-                            Database.deleteFile("backend/server1/" + listId.toString() + ".ser" );
+                            Database.deleteFile("backend/server4/" + listId.toString() + ".ser" );
 
                             // store list in database
-                            Database.writeToFile(shoppingList, "backend/server1/" + listId.toString() + ".ser" );
+                            Database.writeToFile(shoppingList, "backend/server4/" + listId.toString() + ".ser" );
 
                             System.out.println("Server manager socket address: " + serverManagerSocketAddress);
                             SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);

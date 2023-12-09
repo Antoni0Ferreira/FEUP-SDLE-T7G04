@@ -28,23 +28,28 @@ public class ServerManager {
     private final Set<Long> listIds = new HashSet<Long>();
 
     private HashMap<Integer, SocketChannel> clientChannels = new HashMap<Integer, SocketChannel>();
-
-    private final ExecutorService serverConnectionPool = Executors.newFixedThreadPool(5);
+    private HashMap<SocketChannel, String> serverChannels = new HashMap<>();
 
     private Selector selector;
     private String ipAddress;
     private int portNumber;
     private String token;
     private int requestCount;
+    private int redundancyDegree;
 
     public ServerManager() throws IOException {
         serverTable = new TreeMap<Long, String>();
 
         this.portNumber = 8000;
         this.ipAddress = "127.0.0.1";
-        requestCount = 0;
+        this.requestCount = 0;
+        this.redundancyDegree = 2;
         this.findToken("backend/serverManagerToken.txt");
         System.out.println("Server manager token: " + this.token);
+    }
+
+    public void setRedundancyDegree(int redundancyDegree) {
+        this.redundancyDegree = redundancyDegree;
     }
 
     public void findToken(String tokenFilePath) throws IOException {
@@ -151,6 +156,7 @@ public class ServerManager {
         //Register channel with selector for further IO operations - record it for read operations
         channel.register(this.selector, SelectionKey.OP_READ);
 
+
     }
 
     private void read(SelectionKey key) throws IOException, ClassNotFoundException {
@@ -172,22 +178,49 @@ public class ServerManager {
             System.out.println("Client has closed the connection.");
             channel.close();
         } catch (IOException | ClassNotFoundException e) {
-            System.out.println("Error reading from client.");
+
+            // distinguish between client and server
+            if(serverChannels.containsKey(channel)) {
+                String ipAddress = serverChannels.get(channel);
+                System.out.println("Server with IP address " + ipAddress + " has closed the connection.");
+                //removeServer(ipAddress);
+                serverChannels.remove(channel);
+            }
+            else {
+                System.out.println("Client has closed the connection.");
+            }
+
             channel.close();
         }
 
     }
 
-    private String getServerWithId(long idHashed) {
+    private ArrayList<String> getServerWithId(long idHashed) {
 
-        // Check which server holds the list with the given id
-        // iterate server table and send it to the IP address
-        for (Map.Entry<Long, String> entry : serverTable.entrySet()) {
+        ArrayList<String> serverList = new ArrayList<String>();
+
+
+        // get the iterator for the server table
+        Iterator<Map.Entry<Long, String>> iterator = serverTable.entrySet().iterator();
+        int degree = this.redundancyDegree;
+
+        while(degree > 0) {
+            if(!iterator.hasNext()) {
+                iterator = serverTable.entrySet().iterator();
+            }
+
+            Map.Entry<Long, String> entry = iterator.next();
             if(entry.getKey() > idHashed) {
-                return entry.getValue();
+                serverList.add(entry.getValue());
+                degree--;
             }
         }
-        return serverTable.get(serverTable.firstKey());
+
+        return serverList;
+    }
+
+    public void initServer() {
+        
     }
 
     private void dealWithMessage(Message message, SocketChannel clientChannel) {
@@ -201,6 +234,7 @@ public class ServerManager {
                             Message confirmAuth = new Message(Message.Type.AUTH_OK, "Authentication successful");
                             confirmAuth.sendMessage(clientChannel);
                             addServer(pair.getFirst());
+                            serverChannels.put(clientChannel, pair.getFirst());
                         }
                         else {
                             Message confirmAuth = new Message(Message.Type.AUTH_FAIL, null);
@@ -223,17 +257,20 @@ public class ServerManager {
                     }
 
                     // get server from server ring
-                    String serverIp = getServerWithId(listId);
-                    SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
+                    ArrayList<String> serverList = getServerWithId(listId);
 
                     // add client channel to hashmap
                     clientChannels.put(requestCount, clientChannel);
 
-                    // send to the server the list id and the client channel
-                    Message messageToSend = new Message(Message.Type.CREATE_LIST, listId);
-                    messageToSend.setId(requestCount);
-                    messageToSend.sendMessage(server);
+                    for (String serverIp : serverList) {
+                        SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
 
+                        // send to the server the list id and the client channel
+                        Message messageToSend = new Message(Message.Type.CREATE_LIST, listId);
+                        messageToSend.setId(requestCount);
+                        messageToSend.setSender(Message.Sender.SERVER_MANAGER);
+                        messageToSend.sendMessage(server);
+                    }
 
                     break;
 
@@ -248,15 +285,20 @@ public class ServerManager {
 
                         // get client channel from hashmap
                         int requestId = message.getId();
+                        System.out.println("Received request id: " + requestId);
                         SocketChannel originalClientChannel = clientChannels.get(requestId);
 
-                        // send list to client
-                        Message messageToSend2 = new Message(Message.Type.LIST_CREATED, listObj);
-                        messageToSend2.sendMessage(originalClientChannel);
-                        System.out.println("Message sent to client: " + originalClientChannel);
+                        if(originalClientChannel != null) {
+                            // send list to client
+                            Message messageToSend2 = new Message(Message.Type.LIST_CREATED, listObj);
+                            messageToSend2.sendMessage(originalClientChannel);
+                            messageToSend2.setSender(Message.Sender.SERVER_MANAGER);
+                            System.out.println("Message sent to client: " + originalClientChannel);
 
-                        // remove client channel from hashmap
-                        clientChannels.remove(requestId);
+                            // remove client channel from hashmap
+                            clientChannels.remove(requestId);
+                        }
+
                     }
                     break;
 
@@ -271,12 +313,18 @@ public class ServerManager {
                         clientChannels.put(requestCount, clientChannel);
                         System.out.println("putting client channel in hashmap: " + clientChannel);
 
-                        String serverIp2 = getServerWithId(idHashed);
-                        SocketChannel server2 = SocketChannel.open(new InetSocketAddress(serverIp2, 8000));
-                        Message messageToSend3 = new Message(Message.Type.DELETE_LIST, idHashed);
-                        System.out.println("Sending message to server: " + serverIp2);
-                        messageToSend3.setId(requestCount);
-                        messageToSend3.sendMessage(server2);
+                        ArrayList<String> serverList2 = getServerWithId(idHashed);
+
+                        for (String serverIp : serverList2) {
+                            SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
+
+                            // send to the server the list id and the client channel
+                            Message messageToSend = new Message(Message.Type.DELETE_LIST, idHashed);
+                            System.out.println("Sending message to server: " + serverIp);
+                            messageToSend.setId(requestCount);
+                            messageToSend.setSender(Message.Sender.SERVER_MANAGER);
+                            messageToSend.sendMessage(server);
+                        }
                     }
                     break;
 
@@ -285,11 +333,15 @@ public class ServerManager {
                     int requestId = message.getId();
                     SocketChannel originalClientChannel = clientChannels.get(requestId);
 
-                    // send to the client the IP address of the server that holds the list with the given id
-                    Message messageToSend4 = new Message(Message.Type.LIST_DELETED, null);
-                    messageToSend4.sendMessage(originalClientChannel);
+                    if(originalClientChannel != null) {
+                        // send to the client the IP address of the server that holds the list with the given id
+                        Message messageToSend3 = new Message(Message.Type.LIST_DELETED, null);
+                        messageToSend3.setSender(Message.Sender.SERVER_MANAGER);
+                        messageToSend3.sendMessage(originalClientChannel);
 
-                    clientChannels.remove(requestId);
+                        clientChannels.remove(requestId);
+                    }
+
                     break;
                 case PUSH_LIST:
                     requestCount++;
@@ -301,13 +353,19 @@ public class ServerManager {
                         clientChannels.put(requestCount, clientChannel);
                         System.out.println("putting client channel in hashmap: " + clientChannel);
 
-                        String serverIp3 = getServerWithId(list.getId());
-                        SocketChannel server3 = SocketChannel.open(new InetSocketAddress(serverIp3, 8000));
-                        Message messageToSend5 = new Message(Message.Type.PUSH_LIST, list);
+                        ArrayList<String> serverList3 = getServerWithId(list.getId());
 
-                        System.out.println("Sending message to server: " + serverIp3);
-                        messageToSend5.setId(requestCount);
-                        messageToSend5.sendMessage(server3);
+                        for(String serverIp : serverList3) {
+                            SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
+
+                            // send to the server the list id and the client channel
+                            Message messageToSend = new Message(Message.Type.PUSH_LIST, list);
+                            System.out.println("Sending message to server: " + serverIp);
+                            messageToSend.setId(requestCount);
+                            messageToSend.setSender(Message.Sender.SERVER_MANAGER);
+                            messageToSend.sendMessage(server);
+                        }
+
                     }
                     break;
                 case LIST_PUSHED:
@@ -315,11 +373,15 @@ public class ServerManager {
                     int requestId2 = message.getId();
                     SocketChannel originalClientChannel2 = clientChannels.get(requestId2);
 
-                    // send to the client the IP address of the server that holds the list with the given id
-                    Message messageToSend6 = new Message(Message.Type.LIST_PUSHED, null);
-                    messageToSend6.sendMessage(originalClientChannel2);
+                    if(originalClientChannel2 != null) {
+                        // send to the client the IP address of the server that holds the list with the given id
+                        Message messageToSend5 = new Message(Message.Type.LIST_PUSHED, null);
+                        messageToSend5.setSender(Message.Sender.SERVER_MANAGER);
+                        messageToSend5.sendMessage(originalClientChannel2);
 
-                    clientChannels.remove(requestId2);
+                        clientChannels.remove(requestId2);
+                    }
+
                     break;
                 case PULL_LIST:
                     requestCount++;
@@ -332,12 +394,19 @@ public class ServerManager {
                         clientChannels.put(requestCount, clientChannel);
                         System.out.println("putting client channel in hashmap: " + clientChannel);
 
-                        String serverIp4 = getServerWithId(idHashed);
-                        SocketChannel server4 = SocketChannel.open(new InetSocketAddress(serverIp4, 8000));
-                        Message messageToSend7 = new Message(Message.Type.PULL_LIST, idHashed);
-                        System.out.println("Sending message to server: " + serverIp4);
-                        messageToSend7.setId(requestCount);
-                        messageToSend7.sendMessage(server4);
+                        ArrayList<String> serverList4 = getServerWithId(idHashed);
+
+                        for(String serverIp : serverList4) {
+                            SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
+
+                            // send to the server the list id and the client channel
+                            Message messageToSend = new Message(Message.Type.PULL_LIST, idHashed);
+                            System.out.println("Sending message to server: " + serverIp);
+                            messageToSend.setId(requestCount);
+                            messageToSend.setSender(Message.Sender.SERVER_MANAGER);
+                            messageToSend.sendMessage(server);
+                        }
+
                     }
                     break;
                 case LIST_PULLED:
@@ -346,58 +415,33 @@ public class ServerManager {
                     int requestId3 = message.getId();
                     SocketChannel originalClientChannel3 = clientChannels.get(requestId3);
 
-                    // send to the client the IP address of the server that holds the list with the given id
-                    Message messageToSend8 = new Message(Message.Type.LIST_PULLED, obj11);
-                    messageToSend8.sendMessage(originalClientChannel3);
+                    if(originalClientChannel3 != null) {
+                        // send to the client the IP address of the server that holds the list with the given id
+                        Message messageToSend6 = new Message(Message.Type.LIST_PULLED, obj11);
+                        messageToSend6.setSender(Message.Sender.SERVER_MANAGER);
+                        messageToSend6.sendMessage(originalClientChannel3);
 
-                    clientChannels.remove(requestId3);
+                        clientChannels.remove(requestId3);
+                    }
                     break;
                 case LIST_NOT_FOUND:
 
                     int requestId4 = message.getId();
                     SocketChannel originalClientChannel4 = clientChannels.get(requestId4);
 
-                    // send to the client the IP address of the server that holds the list with the given id
-                    Message messageToSend9 = new Message(Message.Type.LIST_NOT_FOUND, null);
-                    messageToSend9.sendMessage(originalClientChannel4);
+                    if(originalClientChannel4 != null) {
+                        // send to the client the IP address of the server that holds the list with the given id
+                        Message messageToSend7 = new Message(Message.Type.LIST_NOT_FOUND, null);
+                        messageToSend7.setSender(Message.Sender.SERVER_MANAGER);
+                        messageToSend7.sendMessage(originalClientChannel4);
 
-                    clientChannels.remove(requestId4);
-                    break;
-/*                case SYNC:
-
-                    requestCount++;
-
-                    var obj12 = message.getContent();
-                    if(obj12.getClass() == ShoppingList.class) {
-                        ShoppingList list = (ShoppingList) obj12;
-
-                        clientChannels.put(requestCount, clientChannel);
-                        System.out.println("putting client channel in hashmap: " + clientChannel);
-
-                        String serverIp5 = getServerWithId(list.getId());
-                        SocketChannel server5 = SocketChannel.open(new InetSocketAddress(serverIp5, 8000));
-                        Message messageToSend10 = new Message(Message.Type.SYNC, list);
-
-                        System.out.println("Sending message to server: " + serverIp5);
-                        messageToSend10.setId(requestCount);
-                        messageToSend10.sendMessage(server5);
+                        clientChannels.remove(requestId4);
                     }
                     break;
-                case SYNC_OK:
 
-                    var obj13 = message.getContent();
-                    int requestId5 = message.getId();
-                    SocketChannel originalClientChannel5 = clientChannels.get(requestId5);
-
-                    // send to the client the IP address of the server that holds the list with the given id
-                    Message messageToSend11 = new Message(Message.Type.SYNC_OK, obj13);
-                    messageToSend11.sendMessage(originalClientChannel5);
-
-                    clientChannels.remove(requestId5);
-                    break;
                 default:
                     break;
-            }*/
+            }
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

@@ -24,11 +24,17 @@ public class Message implements Serializable {
         PULL_LIST,
         LIST_PULLED,
         LIST_NOT_FOUND,
-        SYNC,
-        SYNC_OK,
+        SERVER_DISCONNECTED
+    }
+
+    public enum Sender {
+        CLIENT,
+        SERVER,
+        SERVER_MANAGER
     }
 
     private final Type type;
+    private Sender sender;
     private final Object content;
 
     private Integer id;
@@ -46,6 +52,13 @@ public class Message implements Serializable {
 
     public void setId(Integer id) {
         this.id = id;
+    }
+    public Sender getSender() {
+        return sender;
+    }
+
+    public void setSender(Sender sender) {
+        this.sender = sender;
     }
 
     public Object getContent() {
