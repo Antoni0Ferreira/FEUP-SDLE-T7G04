@@ -136,9 +136,33 @@ public class CCounter<V extends Comparable<V>, K extends Comparable<K>> implemen
         return null;
     }
 
+    public String toString() {
+        StringBuilder output = new StringBuilder();
+        output.append("Casual Counter: ").append(id).append(" = ").append(dotKernel.toString());
+        return output.toString();
+    }
+
     public static void main(String[] args) {
 
-        // Test Case 1: Basic Increment and Read Value
+        CCounter<Integer, String> counter1 = new CCounter<>("Counter1");
+        CCounter<Integer, String> counter2 = new CCounter<>("Counter2");
+
+        counter1.increment(10);
+        counter2.increment(5);
+
+        System.out.println("Counter1 before join: " + counter1);
+        System.out.println("Counter2 before join: " + counter2);
+
+        counter1.increment(5);
+
+        System.out.println("Counter1 after incrementing by 5: " + counter1);
+        System.out.println("Counter2 remains: " + counter2);
+
+        counter1.join(counter2);
+
+        System.out.println("Counter1 after joining with Counter2: " + counter1);
+        System.out.println("Counter2 remains: " + counter2);
+/*        // Test Case 1: Basic Increment and Read Value
         System.out.println("Test Case 1: Basic Increment and Read Value");
         CCounter<Integer, String> counter1 = new CCounter<>("Counter1");
         counter1.increment(5);
@@ -283,7 +307,7 @@ public class CCounter<V extends Comparable<V>, K extends Comparable<K>> implemen
         counterL.decrement(5);
 
         System.out.println("CounterK after reset: " + counterK.readValue());
-        System.out.println("CounterL after decrement: " + counterL.readValue());
+        System.out.println("CounterL after decrement: " + counterL.readValue());*/
 
     }
 

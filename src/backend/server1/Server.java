@@ -461,6 +461,9 @@ public class Server {
                         if (listObj.getClass() == ShoppingList.class) {
                             ShoppingList shoppingList = (ShoppingList) listObj;
 
+                            System.out.println("Shopping list: " + shoppingList.getShoppingList());
+                            System.out.println("List: " + list.getShoppingList());
+
                             // merge lists
                             shoppingList.mergeShoppingList(list.getShoppingList());
 
