@@ -7,12 +7,10 @@ import java.util.HashSet;
 import java.util.Iterator;
 
 public class AWORSet<K extends Comparable<K>, E extends Comparable<E>> implements Serializable {
-     // Dot kernel
+    // Dot kernel
     private K id;
     private Joinable<E> joinable = (Joinable<E>) new CCounterJoin();
     private DotKernel<E, K> dotKernel = new DotKernel<>(joinable);
-
-    private DotKernel<E, K> prevDotKernel = new DotKernel<>(joinable);
 
     public AWORSet() {
         // Only for deltas and those should not be mutated
@@ -30,22 +28,6 @@ public class AWORSet<K extends Comparable<K>, E extends Comparable<E>> implement
 
     public DotContext<K> getContext() {
         return dotKernel.c;
-    }
-
-    public void setContext(DotContext<K> c) {
-        dotKernel.c = c;
-    }
-
-    public void setPrevContext(DotContext<K> c) {
-        prevDotKernel.c = c;
-    }
-
-    public DotKernel<E, K> getDotKernel() {
-        return dotKernel;
-    }
-
-    public void setDotKernel(DotKernel<E, K> dotKernel) {
-        this.dotKernel = dotKernel;
     }
 
     @Override
@@ -91,10 +73,8 @@ public class AWORSet<K extends Comparable<K>, E extends Comparable<E>> implement
         return r;
     }
 
-    public void join(AWORSet<K, E> o, AWORSet<K, E> prev) {
-        if(prev == null)
-            prev = new AWORSet<>();
-        dotKernel.deepJoin(o.dotKernel, prev.dotKernel);
+    public void join(AWORSet<K, E> o) {
+        dotKernel.deepJoin(o.dotKernel);
 
     }
 
@@ -147,10 +127,11 @@ public class AWORSet<K extends Comparable<K>, E extends Comparable<E>> implement
         AWORSet<String, Integer> set6 = new AWORSet<>("Set6");
         set5 = set5.add(1);
         set6 = set6.add(2);
-
+        set5.join(set6);
         System.out.println("Set5 after joining with Set6: " + set5);
 
         System.out.println("==================================================");
+
 
         System.out.println("All test cases completed.");
     }

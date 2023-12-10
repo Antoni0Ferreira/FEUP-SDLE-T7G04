@@ -132,7 +132,7 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> impleme
         c.join(o.c);
     }
 
-    public void deepJoin(DotKernel<T,K> o, DotKernel<T,K> prevValue1){
+    public void deepJoin(DotKernel<T,K> o){
         if(this == o) return;
 
         Iterator<Map.Entry<Pair<K, Integer>, T>> it = dotMap.entrySet().iterator();
@@ -185,7 +185,7 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> impleme
                     var aux1 = entry.getValue();
                     var aux2 = entryo.getValue();
 
-                    entry.setValue(join(entry.getValue(), entryo.getValue(), prevValue1.dotMap.get(entry.getKey())));
+                    entry.setValue(join(entry.getValue(), entryo.getValue()));
                 }
 
                 if(it.hasNext()){
@@ -275,19 +275,14 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> impleme
         return result;
     }
 
-    private T join(T value1, T value2, T prevValue1) {
-        return joinable.join(value1, value2, prevValue1);
+    private T join(T value1, T value2) {
+        return joinable.join(value1, value2);
     }
 
     public static void main(String[] args) {
 
         // Test Case 1: Basic DotKernel Operations
-        Joinable<Integer> integerJoinable = new Joinable<Integer>() {
-            @Override
-            public Integer join(Integer value1, Integer value2, Integer prevValue1) {
-                return value1 + value2;
-            }
-        };
+        Joinable<Integer> integerJoinable = Integer::sum;
         DotKernel<Integer, String> dotKernel1 = new DotKernel<>(integerJoinable);
 
         DotKernel<Integer, String> dotKernel2 = new DotKernel<>(integerJoinable);
@@ -297,6 +292,7 @@ public class DotKernel<T extends Comparable<T>, K extends Comparable<K>> impleme
         dotKernel2.dotAdd("B", 2);
         dotKernel2.dotAdd("A", 6);
 
+        dotKernel1.deepJoin(dotKernel2);
 
         System.out.println("DotKernel 1: " + dotKernel1);
         System.out.println("DotKernel 2: " + dotKernel2);

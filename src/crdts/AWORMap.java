@@ -1,7 +1,6 @@
 package crdts;
 
 import java.io.Serializable;
-import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -13,17 +12,10 @@ public class AWORMap<K extends Comparable<K>, V extends Comparable<V>> implement
         map = new HashMap<>();
     }
 
-    private Map<K, ArrayList<AWORSet<K,V>>> previousMap = new HashMap<>();
-
-    private AWORMap(Map<K, AWORSet<K, V>> map) {
-        this.map = map;
-    }
-
     public void put(K key, V value) {
         AWORSet<K, V> set = map.getOrDefault(key, new AWORSet<>(key));
         set = set.add(value);
         map.put(key, set);
-        previousMap.put(key, null);
     }
 
     public void remove(K key, V value) {
@@ -34,7 +26,6 @@ public class AWORMap<K extends Comparable<K>, V extends Comparable<V>> implement
                 map.put(key, set);
             else
                 map.remove(key);
-            previousMap.put(key, null);
         }
     }
 
@@ -45,40 +36,12 @@ public class AWORMap<K extends Comparable<K>, V extends Comparable<V>> implement
         return null; // Or return an empty set
     }
 
-    public AWORSet<K, V> getPrevious(K key) {
-        if (previousMap.containsKey(key)) {
-
-            // get the last element of the arraylist
-            if(previousMap.get(key) != null)
-                return previousMap.get(key).get(previousMap.get(key).size() - 2);
-        }
-        return null; // Or return an empty set
-    }
-
     public void join(AWORMap<K, V> other) {
-
         for (Map.Entry<K, AWORSet<K, V>> entry : other.map.entrySet()) {
             K key = entry.getKey();
             AWORSet<K, V> otherSet = entry.getValue();
             AWORSet<K, V> thisSet = map.getOrDefault(key, new AWORSet<>(key));
-
-            // copy thisSet
-            AWORSet<K, V> prevSet = getPrevious(key);
-
-            thisSet.join(otherSet, prevSet);
-            if(prevSet == null)
-                prevSet = new AWORSet<>(key);
-            prevSet.setDotKernel(thisSet.getDotKernel());
-            prevSet.setContext(thisSet.getContext());
-            if(previousMap.containsKey(key))
-                
-                previousMap.get(key).add(prevSet);
-            else {
-                ArrayList<AWORSet<K, V>> prevSetList = new ArrayList<>();
-                prevSetList.add(prevSet);
-                previousMap.put(key, prevSetList);
-            }
-
+            thisSet.join(otherSet);
             map.put(key, thisSet);
         }
     }

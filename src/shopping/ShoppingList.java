@@ -12,8 +12,6 @@ public class ShoppingList implements Serializable {
     private final AWORMap<String, CCounter<Integer, String>> shoppingList;
     private Long id;
     private boolean inCloud;
-
-
     public ShoppingList() {
         shoppingList = new AWORMap<>();
         this.inCloud = false;
@@ -103,24 +101,7 @@ public class ShoppingList implements Serializable {
     }
 
     public static void main(String[] args) {
-
         ShoppingList shoppingList = new ShoppingList();
-        shoppingList.addItem("Apple", 3);
-        shoppingList.addItem("Apple", 3);
-
-        ShoppingList shoppingList2 = new ShoppingList();
-        shoppingList2.addItem("Apple", 5);
-
-        System.out.println(shoppingList.getShoppingList().toString());
-        System.out.println(shoppingList2.getShoppingList().toString());
-
-        shoppingList.mergeShoppingList(shoppingList2.getShoppingList());
-
-        System.out.println(shoppingList.getShoppingList().toString());
-
-
-
-/*        ShoppingList shoppingList = new ShoppingList();
         shoppingList.addItem("Apple", 3);
         shoppingList.addItem("Orange", 3);
         shoppingList.addItem("Banana", 4);
@@ -162,8 +143,8 @@ public class ShoppingList implements Serializable {
         shoppingList.addItem("Apple", 3); // Incrementing the quantity of an existing item
         shoppingList.displayShoppingList();
 
-        System.out.println("==================================================");*/
-
+        System.out.println("==================================================");
+        
     }
 
 
