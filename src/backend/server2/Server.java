@@ -21,25 +21,31 @@ import java.nio.channels.SocketChannel;
 import java.util.*;
 
 public class Server {
+
+    private String filepathPrefix;
     private String ipAddress;
     private int portNumber;
     private ServerSocket serverSocket;
     private Selector selector;
     private Long idHashed;
     private SortedMap<Long, String> serverTable;
-
     private InetSocketAddress serverManagerSocketAddress;
-
+    private HashSet<Long> listIds;
+    private HashMap<SocketChannel, String> serverChannels = new HashMap<>();
     private String token;
+    private int redundancyDegree;
 
     public Server(String ipAddress, int portNumber) throws IOException {
         this.ipAddress = ipAddress;
         this.portNumber = portNumber;
         this.serverTable = new TreeMap<Long, String>();
         this.serverManagerSocketAddress = new InetSocketAddress("127.0.0.1", 8000);
+        this.listIds = new HashSet<Long>();
+        this.redundancyDegree = 2;
+        this.filepathPrefix = "backend/server2/";
 
         this.findToken("backend/serverToken.txt");
-        System.out.println("Server token: " + this.token);
+        //System.out.println("Server token: " + this.token);
 
         this.idHashed = MurmurHash.hash_x86_32(this.ipAddress.getBytes(), this.ipAddress.getBytes().length, 0);
 
@@ -54,6 +60,13 @@ public class Server {
         this.serverTable = server.serverTable;
         this.serverManagerSocketAddress = server.serverManagerSocketAddress;
         this.token = server.token;
+        this.listIds = server.listIds;
+        this.redundancyDegree = server.redundancyDegree;
+        this.filepathPrefix = server.filepathPrefix;
+    }
+
+    public void setRedundancyDegree(int redundancyDegree) {
+        this.redundancyDegree = redundancyDegree;
     }
 
     private void startServer() throws IOException, ClassNotFoundException {
@@ -69,7 +82,7 @@ public class Server {
         serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 
         if(!authenticate()){
-            System.out.println("Authentication failed");
+            //System.out.println("Authentication failed");
             System.exit(1);
         }
 
@@ -126,10 +139,10 @@ public class Server {
 
         // send Message
         if(message.sendMessage(serverManager)){
-            System.out.println("Sent message to server manager: " + message);
+            //System.out.println("Sent message to server manager: " + message);
         }
         else {
-            System.out.println("Failed to send message to server manager: " + message);
+            //System.out.println("Failed to send message to server manager: " + message);
         }
 
         // receive Message
@@ -137,7 +150,7 @@ public class Server {
 
         switch (receivedMessage.getType()) {
             case AUTH_OK:
-                System.out.println("Received message with type: " + receivedMessage.getType() + " and content: " + receivedMessage.getContent());
+                //System.out.println("Received message with type: " + receivedMessage.getType() + " and content: " + receivedMessage.getContent());
                 break;
             case AUTH_FAIL:
                 System.out.println("Authentication failed");
@@ -167,20 +180,101 @@ public class Server {
     private void read(SelectionKey key) throws IOException, ClassNotFoundException {
         SocketChannel channel = (SocketChannel) key.channel();
 
-        if (!channel.isOpen()) {
-            System.out.println("Channel is closed");
-            return;
+        try {
+            Message message = Message.readMessage(channel);
+            System.out.println("Received message with type: " + message.getType() + " and content: " + message.getContent());
+            dealWithMessage(message, channel);
+        } catch (EOFException e) {
+            System.out.println("Server disconnected");
+            channel.close();
+        } catch (IOException | ClassNotFoundException e) {
+            if(serverChannels.containsKey(channel)) {
+                String ipAddress = serverChannels.get(channel);
+                System.out.println("Server with IP address " + ipAddress + " has closed the connection.");
+                //removeServer(ipAddress);
+
+            }
+
+            channel.close();
         }
 
-        Message message = Message.readMessage(channel);
 
-        System.out.println("Received message with type: " + message.getType() + " and content: " + message.getContent());
 
-        dealWithMessage(message, channel);
 
     }
 
-    private void dealWithMessage(Message message, SocketChannel channel){
+    private Set<String> getServerWithId(long idHashed) {
+
+        Set<String> serverList = new HashSet<String>();
+
+        // get the iterator for the server table
+        Iterator<Map.Entry<Long, String>> iterator = serverTable.entrySet().iterator();
+        int degree = this.redundancyDegree;
+
+        while(degree > 0) {
+            if(!iterator.hasNext()) {
+                idHashed = 0;
+                iterator = serverTable.entrySet().iterator();
+            }
+
+            Map.Entry<Long, String> entry = iterator.next();
+            if(entry.getKey() >= idHashed) {
+                serverList.add(entry.getValue());
+                degree--;
+            }
+        }
+
+        System.out.println("Server list: " + serverList);
+
+        return serverList;
+    }
+
+    private Long calculateLeftServerLimit(Long newServerId) {
+        // get the iterator for the server table
+        Iterator<Map.Entry<Long, String>> iterator = serverTable.entrySet().iterator();
+        Iterator<Map.Entry<Long, String>> newServerIt = null;
+
+        if(this.serverTable.size() <= this.redundancyDegree) {
+            return newServerId + 1;
+        }
+
+        int numNexts = this.serverTable.size() - this.redundancyDegree;
+        long leftServerLimit = 0;
+
+        if(iterator.hasNext()) {
+            Map.Entry<Long, String> entry = iterator.next();
+            while(!Objects.equals(entry.getKey(), newServerId)){
+
+                entry = iterator.next();
+            }
+            newServerIt = iterator;
+        }
+
+        while(numNexts > 0) {
+            if(!newServerIt.hasNext()) {
+                newServerIt = serverTable.entrySet().iterator();
+            }
+            Map.Entry<Long, String> entry = newServerIt.next();
+            leftServerLimit = entry.getKey();
+            System.out.println("Left server limit: " + leftServerLimit);
+            numNexts--;
+        }
+
+
+        return leftServerLimit;
+    }
+
+    private boolean listInRange(Long listId, Long leftLimit, Long rightLimit ) {
+        if(rightLimit < leftLimit){
+            // list should be sent if list id < right limit or list id > left limit
+            return listId > leftLimit || listId < rightLimit;
+        } else {
+            // list should be sent if list id < right limit and list id > left limit
+            return listId > leftLimit && listId < rightLimit;
+        }
+    }
+
+    private void dealWithMessage(Message message, SocketChannel channel) throws IOException, ClassNotFoundException {
         try {
             switch (message.getType()){
                 case UPDATE_TABLE:
@@ -188,6 +282,84 @@ public class Server {
                     if(obj.getClass() == TreeMap.class) {
                         SortedMap<Long, String> serverTable = (SortedMap<Long, String>) obj;
                         this.setServerTable(serverTable);
+                    }
+                    break;
+
+                case ADD_SERVER:
+                    var obj2 = message.getContent();
+                    if(obj2.getClass() == Long.class){
+                        Long newServerId = (Long) obj2;
+
+                        Long rightNewServerLimit = newServerId;
+                        Long leftNewServerLimit = calculateLeftServerLimit(newServerId);
+
+                        System.out.println("New Server Left limit: " + leftNewServerLimit);
+                        System.out.println("New Server Right limit: " + newServerId);
+
+                        System.out.println("------------------");
+
+                        Long leftServerLimit = calculateLeftServerLimit(this.idHashed);
+                        Long rightServerLimit = this.idHashed;
+
+                        System.out.println("Server Left limit: " + leftServerLimit);
+                        System.out.println("Server Right limit: " + this.idHashed);
+
+                        // print list ids
+                        System.out.println("\nList ids:");
+                        for(Long listId : listIds){
+                            System.out.println(listId);
+                        }
+
+
+                        // iterate through list ids
+                        Iterator<Long> iterator = listIds.iterator();
+
+                        while(iterator.hasNext()){
+                            Long listId = iterator.next();
+
+                            System.out.printf("List id: %d\n", listId);
+
+                            // if list is in range of new server
+                            if(listInRange(listId, leftNewServerLimit, rightNewServerLimit)){
+                                // send list to server and remove from database
+                                Object listObj  = Database.readFromFile(this.filepathPrefix
+                                        + listId.toString() + ".ser");
+
+                                if (listObj.getClass() == ShoppingList.class  ) {
+                                    ShoppingList shoppingList = (ShoppingList) listObj;
+
+                                    // delete list from database if exists else create
+                                    if(!listInRange(listId, leftServerLimit, rightServerLimit)){
+                                        Database.deleteFile(this.filepathPrefix + listId.toString() + ".ser" );
+                                    }
+
+                                    try {
+                                        String socketAddress = serverTable.get(newServerId);
+                                        SocketChannel serverChannel = SocketChannel.open(
+                                                new InetSocketAddress(socketAddress, 8000));
+
+                                        Message messageToSend = new Message(Message.Type.PUSH_LIST, shoppingList);
+                                        messageToSend.setId(message.getId());
+                                        messageToSend.setSender(Message.Sender.SERVER);
+                                        messageToSend.sendMessage(serverChannel);
+                                        serverChannels.put(serverChannel, socketAddress);
+
+                                    } catch (IOException e) {
+                                        System.out.println("Server is unavailable.");
+
+                                    }
+
+
+                                    // after sending list to new server, close connection
+                                }
+                                else {
+                                    System.out.println("Error reading list");
+                                    break;
+                                }
+                            }
+
+                        }
+
                     }
                     break;
 
@@ -211,10 +383,12 @@ public class Server {
                         // send list to ServerManager
                         Message messageToSend = new Message(Message.Type.LIST_CREATED, content);
                         messageToSend.setId(message.getId());
+                        messageToSend.setSender(Message.Sender.SERVER);
                         messageToSend.sendMessage(serverManager);
 
                         // store list in database
-                        Database.writeToFile(shoppingList, "backend/server2/" + listId.toString() + ".ser" );
+                        Database.writeToFile(shoppingList, this.filepathPrefix + listId.toString() + ".ser" );
+                        listIds.add(listId);
 
                     }
 
@@ -226,7 +400,7 @@ public class Server {
                         Long listId = (Long) obj4;
 
                         // check if file exists
-                        File file = new File("backend/server2/" + listId.toString() + ".ser");
+                        File file = new File(this.filepathPrefix + listId.toString() + ".ser");
 
                         if(!file.exists()) {
                             System.out.println("List not found");
@@ -235,12 +409,14 @@ public class Server {
 
                             Message messageToSend = new Message(Message.Type.LIST_NOT_FOUND, null);
                             messageToSend.setId(message.getId());
+                            messageToSend.setSender(Message.Sender.SERVER);
                             messageToSend.sendMessage(serverManager);
                             break;
                         }
 
                         // delete list from database
-                        Database.deleteFile("backend/server2/" + listId.toString() + ".ser" );
+                        Database.deleteFile(this.filepathPrefix + listId.toString() + ".ser" );
+                        listIds.remove(listId);
 
                         System.out.println("Server manager socket address: " + serverManagerSocketAddress);
                         SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
@@ -248,6 +424,7 @@ public class Server {
                         // send list to ServerManager
                         Message messageToSend = new Message(Message.Type.LIST_DELETED, null);
                         messageToSend.setId(message.getId());
+                        messageToSend.setSender(Message.Sender.SERVER);
                         messageToSend.sendMessage(serverManager);
 
                     }
@@ -260,15 +437,25 @@ public class Server {
                         ShoppingList list = (ShoppingList) obj5;
                         Long listId = list.getId();
 
+                        System.out.println("Server manager socket address: " + serverManagerSocketAddress);
+                        SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
+
                         // check if file exists
-                        File file = new File("backend/server2/" + listId.toString() + ".ser");
+                        File file = new File(this.filepathPrefix + listId.toString() + ".ser");
                         if(!file.exists()) {
-                            Database.writeToFile(list, "backend/server2/" + listId.toString() + ".ser" );
+                            Database.writeToFile(list, this.filepathPrefix + listId.toString() + ".ser" );
+
+                            // send list to ServerManager
+                            Message messageToSend = new Message(Message.Type.LIST_PUSHED, listId);
+                            messageToSend.setId(message.getId());
+                            messageToSend.setSender(Message.Sender.SERVER);
+                            messageToSend.sendMessage(serverManager);
+                            listIds.add(listId);
                             break;
                         }
 
                         // read list from database
-                        Object listObj  = Database.readFromFile("backend/server2/"
+                        Object listObj  = Database.readFromFile(this.filepathPrefix
                                 + listId.toString() + ".ser");
 
                         if (listObj.getClass() == ShoppingList.class) {
@@ -278,18 +465,23 @@ public class Server {
                             shoppingList.mergeShoppingList(list.getShoppingList());
 
                             // delete list from database if exists else create
-                            Database.deleteFile("backend/server2/" + listId.toString() + ".ser" );
+                            Database.deleteFile(this.filepathPrefix + listId.toString() + ".ser" );
 
                             // store list in database
-                            Database.writeToFile(shoppingList, "backend/server2/" + listId.toString() + ".ser" );
+                            Database.writeToFile(shoppingList, this.filepathPrefix + listId.toString() + ".ser" );
 
-                            System.out.println("Server manager socket address: " + serverManagerSocketAddress);
-                            SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
 
                             // send list to ServerManager
-                            Message messageToSend = new Message(Message.Type.LIST_PUSHED, null);
+                            Message messageToSend = new Message(Message.Type.LIST_PUSHED, listId);
                             messageToSend.setId(message.getId());
+                            messageToSend.setSender(Message.Sender.SERVER);
                             messageToSend.sendMessage(serverManager);
+
+                            System.out.println("\nList ids:");
+
+                            for(Long id : listIds){
+                                System.out.println(id);
+                            }
 
                         } else {
                             System.out.println("Error reading list");
@@ -305,7 +497,7 @@ public class Server {
                         Long listId = (Long) obj6;
 
                         // check if file exists
-                        File file = new File("backend/server2/" + listId.toString() + ".ser");
+                        File file = new File(this.filepathPrefix + listId.toString() + ".ser");
                         if(!file.exists()) {
                             System.out.println("List not found");
 
@@ -317,7 +509,7 @@ public class Server {
                             break;
                         }
 
-                        Object listObj  = Database.readFromFile("backend/server2/"
+                        Object listObj  = Database.readFromFile(this.filepathPrefix
                                 + listId.toString() + ".ser");
 
                         if (listObj.getClass() == ShoppingList.class) {
@@ -327,6 +519,7 @@ public class Server {
 
                             Message messageToSend = new Message(Message.Type.LIST_PULLED, list);
                             messageToSend.setId(message.getId());
+                            messageToSend.setSender(Message.Sender.SERVER);
                             messageToSend.sendMessage(serverManager);
                             System.out.println("Sent list to client: " + list);
 
@@ -448,6 +641,8 @@ public class Server {
         String ipAddress = args[0];
         int portNumber = Integer.parseInt(args[1]);
         Server server = new Server(ipAddress, portNumber);
+
         server.startServer();
+
     }
 }

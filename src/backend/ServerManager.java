@@ -74,17 +74,41 @@ public class ServerManager {
 
     public void broadcastMessage(Message message) {
         System.out.println("Broadcasting message with type: " + message.getType() + " and content: " + message.getContent());
-        try {
-            // iterate server table and send it to the IP address
-            for (Map.Entry<Long, String> entry : serverTable.entrySet()) {
-                String ipAddress = entry.getValue();
-                SocketChannel server = SocketChannel.open(new InetSocketAddress(ipAddress, 8000));
 
+        // iterate server table and send it to the IP address
+        for (Map.Entry<Long, String> entry : serverTable.entrySet()) {
+            String ipAddress = entry.getValue();
+
+            try {
+                SocketChannel server = SocketChannel.open(new InetSocketAddress(ipAddress, 8000));
                 message.sendMessage(server);
+            } catch (IOException e) {
+                System.out.println("Server with IP address " + ipAddress + " has closed the connection.");
             }
-        } catch (IOException e) {
-            throw new RuntimeException(e);
+
         }
+    }
+
+    public void broadcastMessage(Message message, String serverIpAddress) {
+        System.out.println("Broadcasting message with type: " + message.getType() + " and content: " + message.getContent());
+
+
+        // iterate server table and send it to the IP address
+        for (Map.Entry<Long, String> entry : serverTable.entrySet()) {
+            String ipAddress = entry.getValue();
+            if (ipAddress.equals(serverIpAddress)) {
+                continue;
+            }
+
+            try {
+                SocketChannel server = SocketChannel.open(new InetSocketAddress(ipAddress, 8000));
+                message.sendMessage(server);
+            } catch (IOException e) {
+                System.out.println("Server with IP address " + ipAddress + " has closed the connection.");
+            }
+
+        }
+
     }
 
     public void addServer(String ipAddress) {
@@ -94,8 +118,10 @@ public class ServerManager {
         broadcastMessage(message);
 
         Long ipAddressHashLong = ipAddressHash;
-        Message message = new Message(Message.Type.ADD_SERVER, ipAddressHashLong);
-        broadcastMessage(message);
+        message = new Message(Message.Type.ADD_SERVER, ipAddressHashLong);
+        message.setId(0);
+        message.setSender(Message.Sender.SERVER_MANAGER);
+        broadcastMessage(message, ipAddress);
     }
 
     public void removeServer(String ipAddress) {
@@ -187,7 +213,7 @@ public class ServerManager {
                 String ipAddress = serverChannels.get(channel);
                 System.out.println("Server with IP address " + ipAddress + " has closed the connection.");
                 //removeServer(ipAddress);
-                serverChannels.remove(channel);
+
             }
             else {
                 System.out.println("Client has closed the connection.");
@@ -198,10 +224,9 @@ public class ServerManager {
 
     }
 
-    private ArrayList<String> getServerWithId(long idHashed) {
+    private Set<String> getServerWithId(long idHashed) {
 
-        ArrayList<String> serverList = new ArrayList<String>();
-
+        Set<String> serverList = new HashSet<String>();
 
         // get the iterator for the server table
         Iterator<Map.Entry<Long, String>> iterator = serverTable.entrySet().iterator();
@@ -209,6 +234,7 @@ public class ServerManager {
 
         while(degree > 0) {
             if(!iterator.hasNext()) {
+                idHashed = 0;
                 iterator = serverTable.entrySet().iterator();
             }
 
@@ -260,12 +286,13 @@ public class ServerManager {
                     }
 
                     // get server from server ring
-                    ArrayList<String> serverList = getServerWithId(listId);
+                    Set<String> serverList = getServerWithId(listId);
 
                     // add client channel to hashmap
                     clientChannels.put(requestCount, clientChannel);
 
                     for (String serverIp : serverList) {
+
                         SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
 
                         // send to the server the list id and the client channel
@@ -314,19 +341,31 @@ public class ServerManager {
                         long idHashed = Long.parseLong((String) obj6);
 
                         clientChannels.put(requestCount, clientChannel);
-                        System.out.println("putting client channel in hashmap: " + clientChannel);
 
-                        ArrayList<String> serverList2 = getServerWithId(idHashed);
+                        try {
+                            Set<String> serverList2 = getServerWithId(idHashed);
+                            for(String serverIp : serverList2) {
 
-                        for (String serverIp : serverList2) {
-                            SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
+                                try {
+                                    SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
 
-                            // send to the server the list id and the client channel
-                            Message messageToSend = new Message(Message.Type.DELETE_LIST, idHashed);
-                            System.out.println("Sending message to server: " + serverIp);
-                            messageToSend.setId(requestCount);
+                                    // send to the server the list id and the client channel
+                                    Message messageToSend = new Message(Message.Type.DELETE_LIST, idHashed);
+                                    System.out.println("Sending message to server: " + serverIp);
+                                    messageToSend.setId(requestCount);
+                                    messageToSend.setSender(Message.Sender.SERVER_MANAGER);
+                                    messageToSend.sendMessage(server);
+                                } catch (IOException e) {
+                                    System.out.println("Server with IP address " + serverIp + " is unavailable.");
+                                }
+
+                            }
+                        } catch (NoSuchElementException e) {
+                            System.out.println("There's no available server to handle the request");
+                            Message messageToSend = new Message(Message.Type.SERVER_NOT_FOUND, null);
+                            messageToSend.setId(0);
                             messageToSend.setSender(Message.Sender.SERVER_MANAGER);
-                            messageToSend.sendMessage(server);
+                            messageToSend.sendMessage(clientChannel);
                         }
                     }
                     break;
@@ -353,20 +392,38 @@ public class ServerManager {
                     if(obj8.getClass() == ShoppingList.class) {
                         ShoppingList list = (ShoppingList) obj8;
 
+                        if(!list.isInCloud()){
+                            // check if list id is taken
+                            while(listIds.contains(list.getId())){
+                                list.setId(list.getId() + 1);
+                            }
+                        }
+
                         clientChannels.put(requestCount, clientChannel);
-                        System.out.println("putting client channel in hashmap: " + clientChannel);
 
-                        ArrayList<String> serverList3 = getServerWithId(list.getId());
+                        try {
+                            Set<String> serverList3 = getServerWithId(list.getId());
+                            for(String serverIp : serverList3) {
 
-                        for(String serverIp : serverList3) {
-                            SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
+                                try {
+                                    SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
 
-                            // send to the server the list id and the client channel
-                            Message messageToSend = new Message(Message.Type.PUSH_LIST, list);
-                            System.out.println("Sending message to server: " + serverIp);
-                            messageToSend.setId(requestCount);
+                                    // send to the server the list id and the client channel
+                                    Message messageToSend = new Message(Message.Type.PUSH_LIST, list);
+                                    System.out.println("Sending message to server: " + serverIp);
+                                    messageToSend.setId(requestCount);
+                                    messageToSend.setSender(Message.Sender.SERVER_MANAGER);
+                                    messageToSend.sendMessage(server);
+                                } catch (IOException e) {
+                                    System.out.println("Server with IP address " + serverIp + " is unavailable.");
+                                }
+                            }
+                        } catch (NoSuchElementException e) {
+                            System.out.println("There's no available server to handle the request");
+                            Message messageToSend = new Message(Message.Type.SERVER_NOT_FOUND, null);
+                            messageToSend.setId(0);
                             messageToSend.setSender(Message.Sender.SERVER_MANAGER);
-                            messageToSend.sendMessage(server);
+                            messageToSend.sendMessage(clientChannel);
                         }
 
                     }
@@ -378,7 +435,7 @@ public class ServerManager {
 
                     if(originalClientChannel2 != null) {
                         // send to the client the IP address of the server that holds the list with the given id
-                        Message messageToSend5 = new Message(Message.Type.LIST_PUSHED, null);
+                        Message messageToSend5 = new Message(Message.Type.LIST_PUSHED, obj9);
                         messageToSend5.setSender(Message.Sender.SERVER_MANAGER);
                         messageToSend5.sendMessage(originalClientChannel2);
 
@@ -395,19 +452,31 @@ public class ServerManager {
                         long idHashed = Long.parseLong((String) obj10);
 
                         clientChannels.put(requestCount, clientChannel);
-                        System.out.println("putting client channel in hashmap: " + clientChannel);
 
-                        ArrayList<String> serverList4 = getServerWithId(idHashed);
+                        try {
+                            Set<String> serverList3 = getServerWithId(idHashed);
+                            for(String serverIp : serverList3) {
 
-                        for(String serverIp : serverList4) {
-                            SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
+                                try {
+                                    SocketChannel server = SocketChannel.open(new InetSocketAddress(serverIp, 8000));
 
-                            // send to the server the list id and the client channel
-                            Message messageToSend = new Message(Message.Type.PULL_LIST, idHashed);
-                            System.out.println("Sending message to server: " + serverIp);
-                            messageToSend.setId(requestCount);
+                                    // send to the server the list id and the client channel
+                                    Message messageToSend = new Message(Message.Type.PULL_LIST, idHashed);
+                                    System.out.println("Sending message to server: " + serverIp);
+                                    messageToSend.setId(requestCount);
+                                    messageToSend.setSender(Message.Sender.SERVER_MANAGER);
+                                    messageToSend.sendMessage(server);
+                                } catch (IOException e) {
+                                    System.out.println("Server with IP address " + serverIp + " is unavailable.");
+                                }
+
+                            }
+                        } catch (NoSuchElementException e) {
+                            System.out.println("There's no available server to handle the request");
+                            Message messageToSend = new Message(Message.Type.SERVER_NOT_FOUND, null);
+                            messageToSend.setId(0);
                             messageToSend.setSender(Message.Sender.SERVER_MANAGER);
-                            messageToSend.sendMessage(server);
+                            messageToSend.sendMessage(clientChannel);
                         }
 
                     }

@@ -11,13 +11,16 @@ import java.util.Set;
 public class ShoppingList implements Serializable {
     private final AWORMap<String, CCounter<Integer, String>> shoppingList;
     private Long id;
+    private boolean inCloud;
     public ShoppingList() {
         shoppingList = new AWORMap<>();
+        this.inCloud = false;
     }
 
     public ShoppingList(Long id) {
         shoppingList = new AWORMap<>();
         this.id = id;
+        this.inCloud = false;
     }
     public Long getId() {
         return id;
@@ -25,6 +28,14 @@ public class ShoppingList implements Serializable {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public boolean isInCloud() {
+        return inCloud;
+    }
+
+    public void setInCloud(boolean inCloud) {
+        this.inCloud = inCloud;
     }
 
     public AWORMap<String, CCounter<Integer, String>> getShoppingList() {

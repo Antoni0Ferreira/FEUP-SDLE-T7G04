@@ -3,13 +3,13 @@ package client.client1;
 import shopping.ShoppingList;
 import utils.Message;
 import utils.Database;
+import utils.MurmurHash;
 
 import java.io.*;
 import java.net.InetSocketAddress;
 import java.nio.channels.Selector;
 import java.nio.channels.SocketChannel;
-import java.sql.SQLOutput;
-import java.util.ArrayList;
+import java.util.Objects;
 import java.util.Random;
 import java.util.Scanner;
 
@@ -35,17 +35,12 @@ public class Client {
 
     public void startClient() throws IOException, InterruptedException, ClassNotFoundException {
 
-        this.selector = Selector.open();
-
-        SocketChannel clientChannel = SocketChannel.open(serverManagerSocketAddress);
-        clientChannel.configureBlocking(false);
-
         boolean exit = false;
 
         while(!exit){
             System.out.println();
             InputObj input = getClientInput();
-            communicate(input, clientChannel);
+            communicate(input);
         }
 
     }
@@ -138,55 +133,68 @@ public class Client {
         return inputObj;
     }
 
-    private void communicate(InputObj input, SocketChannel serverChannel) throws IOException, ClassNotFoundException {
+    private SocketChannel connectToServer() {
+
+        try {
+            this.selector = Selector.open();
+            SocketChannel serverChannel = SocketChannel.open(serverManagerSocketAddress);
+            serverChannel.configureBlocking(false);
+            return serverChannel;
+        } catch (IOException e) {
+            System.err.println("\nError connecting to the server: " + e.getMessage());
+        }
+
+        return null;
+    }
+
+    private void disconnectFromServer(SocketChannel serverChannel) throws IOException {
+        if (serverChannel != null && serverChannel.isOpen()) {
+            try {
+                serverChannel.close();
+            } catch (IOException e) {
+                System.err.println("\nError closing the server channel: " + e.getMessage());
+            }
+        }
+    }
+
+    private void communicate(InputObj input) throws IOException, ClassNotFoundException {
+
 
         if(!insideList){
             switch (input.getOption()){
                 case "1":
-                    Message request1 = new Message(Message.Type.CREATE_LIST, "");
-                    request1.setSender(Message.Sender.CLIENT);
-                    request1.sendMessage(serverChannel);
 
-                    Message response1 = Message.readMessage(serverChannel);
-                    if(response1.getType() == Message.Type.LIST_CREATED){
-                        System.out.println("\nList created successfully");
-                    }
-                    else{
-                        System.out.println("\nError creating list");
-                        break;
-                    }
+                    // create random list id
+                    long longRandom = new Random().nextLong();
+                    Long listId = MurmurHash.hash_x86_32(Long.toString(longRandom).getBytes(),
+                            Long.toString(longRandom).getBytes().length, 0);
 
-                    // check if list is an ArrayList
-                    var listObj = response1.getContent();
-                    if(listObj.getClass() == ArrayList.class){
-                        ArrayList<Object> list = (ArrayList<Object>) listObj;
-                        ShoppingList createdList = (ShoppingList) list.get(0);
-                        Long listId = (Long) list.get(1);
+                    // create new shopping list
+                    ShoppingList shoppingList = new ShoppingList();
+                    shoppingList.setId(listId);
 
-                        Database.writeToFile(createdList, filepathPrefix +
-                                listId.toString() + ".ser" );
-                        currentList = createdList;
-                        currentListId = listId;
-                        insideList = true;
-                    }
-                    else{
-                        System.out.println("\nError creating list");
-                    }
+                    Database.writeToFile(shoppingList, filepathPrefix +
+                            listId.toString() + ".ser" );
+                    currentList = shoppingList;
+                    currentListId = listId;
+                    insideList = true;
+
+                    System.out.println("\nList created successfully. List ID: " + listId);
+
                     break;
 
                 case "2":
 
-                    String listId = input.getListId();
+                    String listIdInput = input.getListId();
 
-                    File file = new File(filepathPrefix + listId + ".ser");
+                    File file = new File(filepathPrefix + listIdInput + ".ser");
                     if(!file.exists()){
                         System.out.println("\nList not found locally");
                         break;
                     }
 
-                    currentList = (ShoppingList) Database.readFromFile(filepathPrefix + listId + ".ser");
-                    currentListId = Long.parseLong(listId);
-
+                    currentList = (ShoppingList) Database.readFromFile(filepathPrefix + listIdInput + ".ser");
+                    currentListId = Long.parseLong(listIdInput);
                     insideList = true;
                     break;
 
@@ -197,19 +205,33 @@ public class Client {
                     File file2 = new File(filepathPrefix + listId3 + ".ser");
                     if(!file2.exists()){
                         System.out.println("\nList not found locally");
+                    } else {
+                        // delete database file regarding the current list and create a new one with the updated list
+                        Database.deleteFile(filepathPrefix + listId3 + ".ser");
+                        System.out.println("\nList deleted locally");
+                    }
+
+                    // ask if the user wants to delete the list remotely
+                    System.out.println("\nDo you want to delete the list remotely?");
+                    System.out.println("1. Yes");
+                    System.out.println("2. No");
+                    String input2 = scanner.nextLine();
+
+                    if(!input2.equals("1")){
                         break;
                     }
 
-                    // delete database file regarding the current list and create a new one with the updated list
-                    Database.deleteFile(filepathPrefix + listId3 + ".ser");
-                    System.out.println("\nList deleted locally");
+                    SocketChannel serverChannel1 = connectToServer();
 
+                    if(serverChannel1 == null){
+                        break;
+                    }
 
                     Message message3 = new Message(Message.Type.DELETE_LIST, listId3);
                     message3.setSender(Message.Sender.CLIENT);
-                    message3.sendMessage(serverChannel);
+                    message3.sendMessage(serverChannel1);
 
-                    Message response3 = Message.readMessage(serverChannel);
+                    Message response3 = Message.readMessage(serverChannel1);
                     if(response3.getType() == Message.Type.LIST_DELETED){
                         System.out.println("\nList deleted remotely");
 
@@ -218,6 +240,8 @@ public class Client {
                     } else {
                         System.out.println("\nError deleting list");
                     }
+
+                    this.disconnectFromServer(serverChannel1);
 
                     break;
 
@@ -232,27 +256,62 @@ public class Client {
                         break;
                     }
 
+                    SocketChannel serverChannel2 = connectToServer();
+
+                    if(serverChannel2 == null){
+                        break;
+                    }
+
                     currentList = (ShoppingList) Database.readFromFile(filepathPrefix + listId4 + ".ser");
+                    currentListId = Long.parseLong(listId4);
                     Message message4 = new Message(Message.Type.PUSH_LIST, currentList);
                     message4.setSender(Message.Sender.CLIENT);
-                    message4.sendMessage(serverChannel);
+                    message4.sendMessage(serverChannel2);
 
-                    Message response4 = Message.readMessage(serverChannel);
+                    Message response4 = Message.readMessage(serverChannel2);
                     if(response4.getType() == Message.Type.LIST_PUSHED){
-                        System.out.println("\nList pushed successfully");
+                        Long responseListId = (Long) response4.getContent();
+
+                        if(!Objects.equals(responseListId, currentListId)){
+                            // delete database file regarding the current list and create a new one with the updated list
+                            Database.deleteFile(filepathPrefix + currentListId.toString() + ".ser");
+                            Database.writeToFile(currentList, filepathPrefix + responseListId.toString() + ".ser");
+                            System.out.println("\nList pushed successfully. List ID updated");
+                            currentList.setId(responseListId);
+                            currentListId = currentList.getId();
+                            break;
+                        } else {
+                            System.out.println("\nList pushed successfully");
+                            currentList.setInCloud(true);
+
+                        }
+                    }
+                    else if(response4.getType() == Message.Type.LIST_NOT_FOUND){
+                        System.out.println("\nList not found remotely");
+                    }
+                    else if(response4.getType() == Message.Type.SERVER_NOT_FOUND){
+                        System.out.println("\nThere are no servers available");
                     }
                     else{
                         System.out.println("\nError pushing list");
+
                     }
+                    this.disconnectFromServer(serverChannel2);
                     break;
                 case "5":
+
+                    SocketChannel serverChannel3 = connectToServer();
+
+                    if(serverChannel3 == null){
+                        break;
+                    }
 
                     String listId5 = input.getListId();
                     Message message5 = new Message(Message.Type.PULL_LIST, listId5);
                     message5.setSender(Message.Sender.CLIENT);
-                    message5.sendMessage(serverChannel);
+                    message5.sendMessage(serverChannel3);
 
-                    Message response5 = Message.readMessage(serverChannel);
+                    Message response5 = Message.readMessage(serverChannel3);
                     if(response5.getType() == Message.Type.LIST_PULLED){
                         currentList = (ShoppingList) response5.getContent();
                         currentListId = currentList.getId();
@@ -274,10 +333,14 @@ public class Client {
 
                     } else if (response5.getType() == Message.Type.LIST_NOT_FOUND) {
                         System.out.println("\nList not found");
-                    } else {
+                    } else if (response5.getType() == Message.Type.SERVER_NOT_FOUND) {
+                        System.out.println("\nThere are no servers available");
+                    }
+                    else {
                         System.out.println("\nError pulling list");
                     }
 
+                    this.disconnectFromServer(serverChannel3);
                     break;
 
 /*
@@ -327,16 +390,6 @@ public class Client {
 */
 
                 case "9":
-                    // Close connection to the server
-                    System.out.println("\nClosing connection to the server");
-                    if (serverChannel != null && serverChannel.isOpen()) {
-                        try {
-                            serverChannel.close();
-                        } catch (IOException e) {
-                            System.err.println("\nError closing the server channel: " + e.getMessage());
-                        }
-                    }
-
                     System.out.println("\nExiting the application");
                     System.exit(0);
                     break;

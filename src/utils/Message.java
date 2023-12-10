@@ -24,8 +24,8 @@ public class Message implements Serializable {
         PULL_LIST,
         LIST_PULLED,
         LIST_NOT_FOUND,
-        SERVER_DISCONNECTED,
-        ADD_SERVER
+        ADD_SERVER,
+        SERVER_NOT_FOUND,
     }
 
     public enum Sender {
