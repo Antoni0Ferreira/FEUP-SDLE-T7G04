@@ -343,52 +343,6 @@ public class Client {
                     this.disconnectFromServer(serverChannel3);
                     break;
 
-/*
-                case "6":
-
-                    String listId6 = input.getListId();
-
-                    // check if list exists locally
-                    File file4 = new File(filepathPrefix + listId6 + ".ser");
-                    if(!file4.exists()){
-                        System.out.println("\nList not found locally");
-                        break;
-                    }
-
-                    currentList = (ShoppingList) Database.readFromFile(filepathPrefix + listId6 + ".ser");
-
-                    Message message6 = new Message(Message.Type.SYNC, currentList);
-                    message6.sendMessage(serverChannel);
-
-                    Message response6 = Message.readMessage(serverChannel);
-                    if(response6.getType() == Message.Type.SYNC_OK){
-                        currentList = (ShoppingList) response6.getContent();
-                        currentListId = currentList.getId();
-                        insideList = true;
-
-                        // check if list exists locally
-                        File file5 = new File(filepathPrefix + listId6 + ".ser");
-                        if(!file4.exists()){
-                            Database.writeToFile(currentList, filepathPrefix + listId6 + ".ser");
-                            System.out.println("\nList pulled successfully");
-                        }
-                        else{
-                            ShoppingList localList = (ShoppingList) Database.readFromFile(filepathPrefix + listId6 + ".ser");
-                            localList.mergeShoppingList(currentList.getShoppingList());
-                            Database.deleteFile(filepathPrefix + listId6 + ".ser");
-                            Database.writeToFile(localList, filepathPrefix + listId6 + ".ser");
-                            System.out.println("\nList pulled successfully");
-                        }
-
-
-                    }
-                    else{
-                        System.out.println("\nError syncing list");
-                    }
-
-                    break;
-*/
-
                 case "9":
                     System.out.println("\nExiting the application");
                     System.exit(0);
@@ -402,28 +356,10 @@ public class Client {
         }
     }
 
-    private void clearInputBuffer(BufferedReader reader) throws IOException {
-        while (reader.ready() && reader.readLine() != null) {
-            // Loop until there's no more input
-        }
-    }
-
     public static void main(String[] args) throws IOException, InterruptedException, ClassNotFoundException {
         // Example usage
         Client client = new Client("127.0.0.1", 8000);
         client.startClient();
-
-/*        ShoppingList shoppingList = new ShoppingList();
-        shoppingList.addItem("Apple", 6);
-
-        shoppingList.displayShoppingList();
-
-        ShoppingList shoppingList2 = new ShoppingList();
-        shoppingList2.addItem("Apple", 1);
-
-        shoppingList.mergeShoppingList(shoppingList2.getShoppingList());
-        shoppingList.displayShoppingList();
-        shoppingList2.displayShoppingList();*/
 
     }
 

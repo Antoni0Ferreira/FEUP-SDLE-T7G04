@@ -141,7 +141,6 @@ public class ServerManager {
         System.out.println("Server manager started at " + this.ipAddress + ":" + this.portNumber);
 
         while(true){
-            // printStatus();
 
             int readyCount = selector.select();
             if(readyCount == 0){

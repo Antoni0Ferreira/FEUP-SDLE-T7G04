@@ -45,7 +45,6 @@ public class Server {
         this.filepathPrefix = "backend/server2/";
 
         this.findToken("backend/serverToken.txt");
-        //System.out.println("Server token: " + this.token);
 
         this.idHashed = MurmurHash.hash_x86_32(this.ipAddress.getBytes(), this.ipAddress.getBytes().length, 0);
 
@@ -82,7 +81,6 @@ public class Server {
         serverChannel.register(selector, SelectionKey.OP_ACCEPT);
 
         if(!authenticate()){
-            //System.out.println("Authentication failed");
             System.exit(1);
         }
 
@@ -108,8 +106,6 @@ public class Server {
                     // write(key);
                 }
             }
-
-            // printStatus();
 
             // Remove the selected keys, because we've dealt with them
             selector.selectedKeys().clear();
@@ -191,8 +187,6 @@ public class Server {
             if(serverChannels.containsKey(channel)) {
                 String ipAddress = serverChannels.get(channel);
                 System.out.println("Server with IP address " + ipAddress + " has closed the connection.");
-                //removeServer(ipAddress);
-
             }
 
             channel.close();
@@ -334,9 +328,6 @@ public class Server {
                                         System.out.println("Server is unavailable.");
 
                                     }
-
-
-                                    // after sending list to new server, close connection
                                 }
                                 else {
                                     System.out.println("Error reading list");
@@ -447,6 +438,9 @@ public class Server {
                         if (listObj.getClass() == ShoppingList.class) {
                             ShoppingList shoppingList = (ShoppingList) listObj;
 
+                            System.out.println("Shopping list: " + shoppingList.getShoppingList());
+                            System.out.println("List: " + list.getShoppingList());
+
                             // merge lists
                             shoppingList.mergeShoppingList(list.getShoppingList());
 
@@ -515,50 +509,6 @@ public class Server {
                         }
                     }
                     break;
-/*                case SYNC:
-                    var obj7 = message.getContent();
-                    if(obj7.getClass() == ShoppingList.class) {
-
-                        ShoppingList list = (ShoppingList) obj7;
-                        Long listId = list.getId();
-
-                        // check if file exists
-                        File file = new File("backend/server2/" + listId.toString() + ".ser");
-                        if(!file.exists()) {
-                            Database.writeToFile(list, "backend/server2/" + listId.toString() + ".ser" );
-                            break;
-                        }
-
-                        // read list from database
-                        Object listObj  = Database.readFromFile("backend/server2/"
-                                + listId.toString() + ".ser");
-
-                        if (listObj.getClass() == ShoppingList.class) {
-                            ShoppingList shoppingList = (ShoppingList) listObj;
-
-                            // merge lists
-                            shoppingList.mergeShoppingList(list.getShoppingList());
-
-                            // delete list from database if exists else create
-                            Database.deleteFile("backend/server2/" + listId.toString() + ".ser" );
-
-                            // store list in database
-                            Database.writeToFile(shoppingList, "backend/server2/" + listId.toString() + ".ser" );
-
-                            System.out.println("Server manager socket address: " + serverManagerSocketAddress);
-                            SocketChannel serverManager = SocketChannel.open(serverManagerSocketAddress);
-
-                            // send list to ServerManager
-                            Message messageToSend = new Message(Message.Type.SYNC_OK, shoppingList);
-                            messageToSend.setId(message.getId());
-                            messageToSend.sendMessage(serverManager);
-
-                        } else {
-                            System.out.println("Error reading list");
-                            break;
-                        }
-                    }
-                    break;*/
                 default:
                     System.out.println("Unknown message type");
                     break;
