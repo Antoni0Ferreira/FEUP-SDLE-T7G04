@@ -293,22 +293,8 @@ public class Server {
                         Long rightNewServerLimit = newServerId;
                         Long leftNewServerLimit = calculateLeftServerLimit(newServerId);
 
-                        System.out.println("New Server Left limit: " + leftNewServerLimit);
-                        System.out.println("New Server Right limit: " + newServerId);
-
-                        System.out.println("------------------");
-
                         Long leftServerLimit = calculateLeftServerLimit(this.idHashed);
                         Long rightServerLimit = this.idHashed;
-
-                        System.out.println("Server Left limit: " + leftServerLimit);
-                        System.out.println("Server Right limit: " + this.idHashed);
-
-                        // print list ids
-                        System.out.println("\nList ids:");
-                        for(Long listId : listIds){
-                            System.out.println(listId);
-                        }
 
 
                         // iterate through list ids
