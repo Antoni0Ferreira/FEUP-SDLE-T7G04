@@ -1,5 +1,5 @@
 # FEUP SDLE T07G04
-## Shopping Lists on the Cloud
+## Shopping List Platform
 
 - António Ferreira (up202004735)
 - Francisco Maldonado (up202004244)
@@ -25,3 +25,4 @@ From the `src` folder run:
 ## Demo
 
 [Demo video](https://www.youtube.com/watch?v=cEB8D7j3JXE)
+
